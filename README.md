@@ -15,7 +15,7 @@ The core algorithm is built upon a **15-State Error-State Kalman Filter (ESKF)**
 * **Kinematic Mechanization**: 4th-order Runge-Kutta (RK4) integration of specific force and angular rates, accounting for Coriolis and transport rate effects over the WGS84 ellipsoid.
 * **Closed-Loop Error Injection**: Real-time feedback of estimated sensor biases $(b_a, b_g)$ into the nominal integrator to preserve first-order linearization validity.
 * **Acasual Smoothing**: Implementation of a **Rauch-Tung-Striebel (RTS)** backward smoother to eliminate causal filter discontinuities and compress the covariance uncertainty bounds.
-* **Adaptive Covariance**: Dynamic process noise matrix $(Q_k)$ scaling to isolate the filter from vibration-induced rectification errors and high-dynamic acoustic anomalies (e.g., Venturi effect on static pressure).
+* **Adaptive Covariance**: Dynamic process noise matrix $(Q_k)$ scaling to isolate the filter from vibration-induced rectification errors and high-dynamic acoustic anomalies.
 
 ## 3. Environment Setup
 This project strictly enforces dependency isolation. Global Python environments are explicitly unsupported.
