@@ -112,6 +112,7 @@ def generate_flight_profile():
 
     # 8. EXPORT
     print("Exporting flight profile datasets...")
+
     pd.DataFrame(
         {
             "t_IMU": t_imu,
@@ -123,6 +124,7 @@ def generate_flight_profile():
             "w_Z": w_raw[:, 2],
         }
     ).to_csv("flight_data_imu.csv", index=False, float_format="%.8f")
+
     pd.DataFrame(
         {
             "t_GNSS": t_gnss,
@@ -134,6 +136,7 @@ def generate_flight_profile():
             "v_U": gnss_vU,
         }
     ).to_csv("flight_data_gnss.csv", index=False, float_format="%.8f")
+
     pd.DataFrame({"t_baro": t_baro, "P_static": baro_P}).to_csv(
         "flight_data_baro.csv", index=False, float_format="%.8f"
     )
