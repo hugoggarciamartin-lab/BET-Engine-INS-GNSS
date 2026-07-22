@@ -1,0 +1,17 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+
+# Entorno virtual y cachés
+.venv/
+venv/
+.mypy_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDEs
+.vscode/
+
+# EXCLUSIÓN GLOBAL DE DATOS (Afecta a raw, aligned_data, results y futuras carpetas)
+*.csv
+*.dat
+*.log

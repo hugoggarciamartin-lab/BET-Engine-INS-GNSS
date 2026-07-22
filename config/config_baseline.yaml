@@ -1,0 +1,50 @@
+# UNIVERSAL CONSTANTS & GEODESY
+geodesy:
+  a: 6378137.0
+  e2: 0.00669437999
+  omega_e: 0.00007292115
+  g_e: 9.7803253359
+  k: 0.001931852652
+  p0_isa: 101325.0
+  t0_isa: 288.15
+  l_isa: 0.0065
+
+# GEOGRAPHIC ANCHOR (VALENCIA PAD)
+launch_pad:
+  lat_0_deg: 39.4811
+  lon_0_deg: -0.3444
+  h_0_m: 15.0
+
+# INITIAL UNCERTAINTY MATRIX (P0)
+initial_uncertainty:
+  sigma_pos_m: 4.0
+  sigma_vel_ms: 0.1
+  sigma_theta_phi_deg: 0.05
+  sigma_psi_deg: 5.0
+  sigma_ba0_ms2: 0.02
+  sigma_bg0_rads: 0.01
+
+# SENSOR QUALITY INVARIANTS
+sensor_quality:
+  hdop_nominal: 1.2
+  vdop_nominal: 1.5
+
+# GEOMETRIC CALIBRATION
+calibration:
+  r_arm_b_m: [1.20, 0.00, -0.35]
+  s_a_ppm: 300.0
+  s_g_ppm: 350.0
+  m_a_deg: 0.05
+  m_g_deg: 0.02
+
+# ALGORITHM TUNING
+algorithm_tuning:
+  k_innov_sigma: 50.0
+  k_vib_mult: 4.0
+  m_vib_window: 10
+
+# VEHICLE DYNAMICS
+vehicle:
+  m_0_kg: 250.0
+  m_f_kg: 100.0
+  s_ref_m2: 0.07
