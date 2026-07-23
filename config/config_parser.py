@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 
-class ConfigParser:  # This Class Convert de .yaml file into an structured Dict
+class ConfigParser:
     def __init__(self, filepath: Path):
         self.filepath = filepath
         self.raw_data: Dict[str, Any] = {}
@@ -57,6 +57,16 @@ class ConfigParser:  # This Class Convert de .yaml file into an structured Dict
             self.params["r_arm_b"] = np.array(
                 self.raw_data["calibration"]["r_arm_b_m"], dtype=np.float64
             )
+
+            # Signal Processing
+            self.params["filter_cutoff_hz"] = float(
+                self.raw_data["signal_processing"]["filter_cutoff_hz"]
+            )
+            self.params["filter_order"] = int(
+                self.raw_data["signal_processing"]["filter_order"]
+            )
+
+            # Tuning
             self.params["m_vib_window"] = int(
                 self.raw_data["algorithm_tuning"]["m_vib_window"]
             )
@@ -74,9 +84,9 @@ class ConfigParser:  # This Class Convert de .yaml file into an structured Dict
 
 
 if __name__ == "__main__":
-    dir = Path(__file__).resolve().parent.parent
-    path = dir / "config" / "config_baseline.yaml"
+    root = Path(__file__).resolve().parent.parent
+    path = root / "config" / "config_baseline.yaml"
 
     parser = ConfigParser(path)
     cfg = parser.parse()
-    print("Config parsed successfully.")
+    print("Config parsed successfully. Filter Cutoff:", cfg["filter_cutoff_hz"], "Hz")

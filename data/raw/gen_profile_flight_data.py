@@ -4,7 +4,7 @@ import gc
 
 
 def generate_flight_profile():
-    # 1. TEMPORAL ALLOCATION
+    # TEMPORAL ALLOCATION
     duration = 120.0
     f_imu, f_gnss, f_baro, f_mag = 400.0, 10.0, 20.0, 20.0
 
@@ -15,7 +15,7 @@ def generate_flight_profile():
     t_baro = np.arange(0.05, duration, 1.0 / f_baro, dtype=np.float64)
     t_mag = np.arange(0.02, duration, 1.0 / f_mag, dtype=np.float64)
 
-    # 2. BASELINE CONSTANTS
+    # BASELINE CONSTANTS
     phi_0 = np.deg2rad(39.4811)
     lam_0 = np.deg2rad(-0.3444)
     h_0 = 15.0
@@ -27,7 +27,7 @@ def generate_flight_profile():
 
     np.random.seed(202)
 
-    # 3. KINEMATIC INTEGRATION (1D Vertical Approximation for synthetic targets)
+    # KINEMATIC INTEGRATION (1D Vertical Approximation for synthetic targets)
     # This creates the "Truth" state to generate sensor readings.
     def get_kinematics(t_array):
         h = np.zeros_like(t_array)
@@ -57,7 +57,7 @@ def generate_flight_profile():
     h_truth_gnss, v_truth_gnss, _ = get_kinematics(t_gnss)
     h_truth_baro, v_truth_baro, _ = get_kinematics(t_baro)
 
-    # 4. IMU GENERATION (Injecting Vibration)
+    # IMU GENERATION (Injecting Vibration)
     f_raw = np.zeros((len(t_imu), 3), dtype=np.float64)
     w_raw = np.zeros((len(t_imu), 3), dtype=np.float64)
 
@@ -81,7 +81,7 @@ def generate_flight_profile():
             Omega_e * np.sin(phi_0) + n_gyro[2],
         ]
 
-    # 5. GNSS GENERATION
+    # GNSS GENERATION
     gnss_phi = phi_0 + np.random.normal(0, 4.0 / a, len(t_gnss))
     gnss_lam = lam_0 + np.random.normal(0, 4.0 / a, len(t_gnss))
     gnss_h = h_truth_gnss + np.random.normal(0, 4.0, len(t_gnss))
@@ -90,7 +90,7 @@ def generate_flight_profile():
     gnss_vN = np.random.normal(0, 0.1, len(t_gnss))
     gnss_vU = v_truth_gnss + np.random.normal(0, 0.2, len(t_gnss))
 
-    # 6. BAROMETER GENERATION (Injecting Venturi Effect)
+    # BAROMETER GENERATION (Injecting Venturi Effect)
     baro_P = np.zeros(len(t_baro), dtype=np.float64)
     for i, t in enumerate(t_baro):
         # Standard ISA pressure
@@ -106,11 +106,11 @@ def generate_flight_profile():
 
         baro_P[i] = P_nominal - venturi_drop + np.random.normal(0, 10.0)
 
-    # 7. MAGNETOMETER GENERATION
+    # MAGNETOMETER GENERATION
     m_nominal = np.array([24.5, 3.2, 38.1], dtype=np.float64)
     mag_raw = m_nominal + np.random.normal(0, 0.5, (len(t_mag), 3))
 
-    # 8. EXPORT
+    # EXPORT
     print("Exporting flight profile datasets...")
 
     pd.DataFrame(

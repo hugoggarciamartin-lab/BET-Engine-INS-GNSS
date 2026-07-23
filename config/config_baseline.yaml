@@ -37,6 +37,11 @@ calibration:
   m_a_deg: 0.05
   m_g_deg: 0.02
 
+# SIGNAL PROCESSING
+signal_processing:
+  filter_cutoff_hz: 10.0
+  filter_order: 4
+
 # ALGORITHM TUNING
 algorithm_tuning:
   k_innov_sigma: 50.0
