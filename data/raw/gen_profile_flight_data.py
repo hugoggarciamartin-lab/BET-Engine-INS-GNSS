@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 import gc
+from pathlib import Path
+
+raw_dir = Path(__file__).resolve().parent
 
 
 def generate_flight_profile():
@@ -115,7 +118,7 @@ def generate_flight_profile():
 
     pd.DataFrame(
         {
-            "t_IMU": t_imu,
+            "time": t_imu,
             "f_X": f_raw[:, 0],
             "f_Y": f_raw[:, 1],
             "f_Z": f_raw[:, 2],
@@ -123,11 +126,11 @@ def generate_flight_profile():
             "w_Y": w_raw[:, 1],
             "w_Z": w_raw[:, 2],
         }
-    ).to_csv("flight_data_imu.csv", index=False, float_format="%.8f")
+    ).to_csv(raw_dir / "flight_data_imu.csv", index=False, float_format="%.8f")
 
     pd.DataFrame(
         {
-            "t_GNSS": t_gnss,
+            "time": t_gnss,
             "Lat": gnss_phi,
             "Lon": gnss_lam,
             "Alt": gnss_h,
@@ -135,19 +138,19 @@ def generate_flight_profile():
             "v_N": gnss_vN,
             "v_U": gnss_vU,
         }
-    ).to_csv("flight_data_gnss.csv", index=False, float_format="%.8f")
+    ).to_csv(raw_dir / "flight_data_gnss.csv", index=False, float_format="%.8f")
 
-    pd.DataFrame({"t_baro": t_baro, "P_static": baro_P}).to_csv(
-        "flight_data_baro.csv", index=False, float_format="%.8f"
+    pd.DataFrame({"time": t_baro, "P_static": baro_P}).to_csv(
+        raw_dir / "flight_data_baro.csv", index=False, float_format="%.8f"
     )
     pd.DataFrame(
         {
-            "t_mag": t_mag,
+            "time": t_mag,
             "m_X": mag_raw[:, 0],
             "m_Y": mag_raw[:, 1],
             "m_Z": mag_raw[:, 2],
         }
-    ).to_csv("flight_data_mag.csv", index=False, float_format="%.8f")
+    ).to_csv(raw_dir / "flight_data_mag.csv", index=False, float_format="%.8f")
 
     print("Flight datasets generated successfully.")
     gc.enable()

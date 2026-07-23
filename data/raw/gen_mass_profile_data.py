@@ -1,6 +1,9 @@
 import numpy as np
 import pandas as pd
 import gc
+from pathlib import Path
+
+raw_dir = Path(__file__).resolve().parent
 
 
 def generate_mass_profile():
@@ -39,11 +42,11 @@ def generate_mass_profile():
     m_noisy = m_curve + sensor_noise
 
     # EXPORT
-    df = pd.DataFrame({"t_mass": t_mass, "mass_kg": m_noisy})
+    df = pd.DataFrame({"time": t_mass, "mass_kg": m_noisy})
 
-    output_filename = "flight_mass_prof_data.csv"
+    output_filename = raw_dir / "flight_mass_prof_data.csv"
     df.to_csv(output_filename, index=False, float_format="%.4f")
-    print(f"Mass profile successfully written to {output_filename}")
+    print(f"Mass profile successfully written to {output_filename.name}")
 
     gc.enable()
 

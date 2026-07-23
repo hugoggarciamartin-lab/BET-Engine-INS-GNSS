@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
+
+raw_dir = Path(__file__).resolve().parent
 
 
 def generate_cfd_model():
@@ -24,9 +27,9 @@ def generate_cfd_model():
 
     df = pd.DataFrame({"Mach": mach_array, "C_D_CFD": cd_array})
 
-    output_filename = "cfd_drag_model.csv"
+    output_filename = raw_dir / "cfd_drag_model.csv"
     df.to_csv(output_filename, index=False, float_format="%.4f")
-    print(f"CFD table successfully written to {output_filename}")
+    print(f"CFD table successfully written to {output_filename.name}")
 
 
 if __name__ == "__main__":
