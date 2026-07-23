@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import pandas as pd  # type: ignore
 from pathlib import Path
 from typing import Dict, Tuple
 
@@ -60,8 +60,7 @@ class staticInitializer:
 
     def gen_initial_state(self) -> Dict[str, np.ndarray]:
         """Constructs de 15x1 initial state vector x_0 and 15x15 covariance matrix P_0"""
-        if self.imu_data.empty:
-            self.load_telem()
+        self.load_telem()
 
         print("Constructing initial state vector x_0 and covariance matrix P_0...")
 
@@ -70,6 +69,10 @@ class staticInitializer:
         w_mean = self.imu_data[["w_X", "w_Y", "w_Z"]].mean().values
         m_mean = self.mag_data[["m_X", "m_Y", "m_Z"]].mean().values
         pos_mean = self.gnss_data[["Lat", "Lon", "Alt"]].mean().values
+
+        # Noise Floor Extraction (Standard Deviation)
+        f_std = self.imu_data[["f_X", "f_Y", "f_Z"]].std().values
+        w_std = self.imu_data[["w_X", "w_Y", "w_Z"]].std().values
 
         # Attitude Extraction
         euler0 = self._compute_initial_att(f_mean, m_mean)
@@ -108,9 +111,15 @@ class staticInitializer:
         P_0[9:12, 9:12] = np.eye(3) * (self.config["sigma_ba0"] ** 2)
         P_0[12:15, 12:15] = np.eye(3) * (self.config["sigma_bg0"] ** 2)
 
-        return {"x_0": x_0, "P_0": P_0}
+        return {
+            "x_0": x_0,
+            "P_0": P_0,
+            "noise_floor_accel": f_std,
+            "noise_floor_gyro": w_std,
+        }
 
 
+# Test
 if __name__ == "__main__":
     project_root = Path(__file__).resolve().parent.parent.parent
     data_dir = project_root / "data" / "raw"
@@ -136,3 +145,5 @@ if __name__ == "__main__":
     print("x_0 [Attitude in rad]     :", initial_data["x_0"][6:9].round(6))
     print("x_0 [Accel Bias in m/s^2] :", initial_data["x_0"][9:12].round(6))
     print("x_0 [Gyro Bias in rad/s]  :", initial_data["x_0"][12:15].round(6))
+    print("Accel Noise [m/s^2]       :", initial_data["noise_floor_accel"].round(6))
+    print("Gyro Noise  [rad/s]       :", initial_data["noise_floor_gyro"].round(6))
