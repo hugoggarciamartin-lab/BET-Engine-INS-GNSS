@@ -46,7 +46,6 @@ class temporalAligner:
     def align_telem(self) -> None:
         print("Initializaing Temporal Aligner")
 
-        # CORREGIDO: Ruta y nombre de archivo exactos
         imu_file = self.aligned_dir / "conditioned_flight_data_imu.csv"
 
         df_imu = self._load_valid(imu_file)
@@ -92,6 +91,7 @@ class temporalAligner:
                         kind="linear",
                         bounds_error=True,
                     )
+                    # Adding the Prefix for each Sensor
                     df_master[f"{prefix}_{col}"] = interpol(t_master)
 
         print("Applying linear interpolation to low-freq channels...")

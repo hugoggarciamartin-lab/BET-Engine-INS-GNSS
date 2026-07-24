@@ -46,7 +46,7 @@ def generate_flight_profile():
             elif 5.0 <= t < 25.0:
                 acc[i] = 45.0  # Motor burn (~4.5G)
             else:
-                acc[i] = -9.81 - (0.002 * v[i - 1] ** 2)  # Coasting + Drag
+                acc[i] = -9.81 - (0.002 * v[i - 1] * np.abs(v[i - 1]))
 
             v[i] = v[i - 1] + acc[i] * dt
             h[i] = h[i - 1] + v[i] * dt
