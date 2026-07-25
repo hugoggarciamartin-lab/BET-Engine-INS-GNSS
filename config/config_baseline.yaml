@@ -28,14 +28,29 @@ initial_uncertainty:
 sensor_quality:
   hdop_nominal: 1.2
   vdop_nominal: 1.5
+  sigma_gnss_p_m: [2.500, 2.500, 4.000]
+  sigma_gnss_v_ms: [0.050, 0.050, 0.100]
+  sigma_baro_m: [0.000, 0.000, 1.500]
+  sigma_mag_ut: [0.300, 0.300, 0.300]
+  sigma_accel_ms2: [0.049659, 0.049903, 0.050111]
+  sigma_gyro_rads: [0.009925, 0.010047, 0.010019]
+
+# ALLAN VARIANCE STOCHASTIC PARAMETERS
+allan_variance:
+  vrw_noise_density: [3.305020e-04, 3.331339e-04, 3.313035e-04]
+  accel_bias_instability: [1.319212e-04, 1.429060e-04, 1.459481e-04]
+  accel_correlation_time_s: [28.231, 24.509, 24.509]
+  arw_noise_density: [1.456168e-05, 1.455108e-05, 1.460147e-05]
+  gyro_bias_instability: [4.410858e-06, 2.963894e-06, 4.568152e-06]
+  gyro_correlation_time_s: [43.146, 3000.000, 43.146]
 
 # GEOMETRIC CALIBRATION
 calibration:
   r_arm_b_m: [1.20, 0.00, -0.35]
-  s_a_ppm: 300.0
-  s_g_ppm: 350.0
-  m_a_deg: 0.05
-  m_g_deg: 0.02
+  s_a_ppm: [310.5, 290.2, 325.0] # X, Y, Z
+  s_g_ppm: [345.1, 355.8, 330.4] # X, Y, Z
+  m_a_deg: [0.05, -0.02, 0.03] # Coupled Missalignments in accelerometers: XY, XZ, YZ
+  m_g_deg: [0.02, 0.01, -0.04] # Coupled Missalignments in gyros: XY, XZ, YZ
 
 # SIGNAL PROCESSING
 signal_processing:

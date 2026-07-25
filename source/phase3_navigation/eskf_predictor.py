@@ -20,12 +20,12 @@ def calc_f_matrix_continuous(
 ) -> np.ndarray:
     """
     Builds the 15x15 continuous-time system dynamics Jacobian matrix F.
-    State Vector: [delta_r (3), delta_v (3), delta_psi (3), delta_ba (3), delta_bg (3)]
-    Accepts anisotropic 3-axis correlation time vectors (tau_a, tau_g) from Allan Variance calibration.
+    State Vector sequence: [delta_r, delta_v, delta_psi, delta_ba, delta_bg]
+    Accepts anisotropic 3-axis correlation time vectors (tau_a, tau_g).
     """
     v_e, v_n, v_u = v_n_vec[0], v_n_vec[1], v_n_vec[2]
 
-    # 1. Position Error Dynamics (F_rr and F_rv)
+    # 1. Position Error Dynamics
     f_rr = np.zeros((3, 3), dtype=np.float64)
     f_rv = np.array(
         [
@@ -36,7 +36,7 @@ def calc_f_matrix_continuous(
         dtype=np.float64,
     )
 
-    # 2. Velocity Error Dynamics (F_vr, F_vv, F_vpsi)
+    # 2. Velocity Error Dynamics
     f_vr = np.array(
         [
             [0.0, 0.0, -v_n / ((r_m + alt_m) ** 2)],
@@ -69,7 +69,7 @@ def calc_f_matrix_continuous(
         dtype=np.float64,
     )
 
-    # 3. Attitude Error Dynamics (F_psipsi)
+    # 3. Attitude Error Dynamics
     w_in_n_att = w_ie_n + w_en_n
     f_psipsi = -np.array(
         [
@@ -80,11 +80,11 @@ def calc_f_matrix_continuous(
         dtype=np.float64,
     )
 
-    # 4. Sensor Bias Error Dynamics (Anisotropic Gauss-Markov diagonal matrices)
+    # 4. Sensor Bias Error Dynamics (Anisotropic Gauss-Markov models)
     f_ba = np.diag(-1.0 / tau_a).astype(np.float64)
     f_bg = np.diag(-1.0 / tau_g).astype(np.float64)
 
-    # 5. Assemble 15x15 Block Matrix
+    # 5. Assemble Block Matrix
     zero_3x3 = np.zeros((3, 3), dtype=np.float64)
 
     f_matrix = np.block(
@@ -102,45 +102,50 @@ def calc_f_matrix_continuous(
 
 def discretize_phi_matrix(f_matrix: np.ndarray, dt: float) -> np.ndarray:
     """
-    Discretizes the continuous system dynamics matrix F into State Transition Matrix Phi
-    using a first-order Taylor expansion suitable for high-frequency (400 Hz) loops.
+    Discretizes the continuous system dynamics matrix F into State Transition Matrix Phi.
+    Utilizes first-order Taylor expansion for real-time deterministic performance.
     """
     return np.eye(15, dtype=np.float64) + (f_matrix * dt)
 
 
-def build_discrete_q_matrix(
+def calc_q_matrix_discrete(
     c_b2n: np.ndarray,
     dt: float,
-    sigma_vrw: float,
-    sigma_arw: float,
-    sigma_ba_walk: float,
-    sigma_bg_walk: float,
+    sigma_vrw_vec: np.ndarray,
+    sigma_arw_vec: np.ndarray,
+    sigma_ba_walk_vec: np.ndarray,
+    sigma_bg_walk_vec: np.ndarray,
     is_vibrating: bool,
     accel_var_penalty: np.ndarray,
     gyro_var_penalty: np.ndarray,
 ) -> np.ndarray:
     """
-    Constructs the Discrete Process Noise Covariance Matrix (Q_k) incorporating
-    thermomechanical base noise and adaptive vibrational penalties.
+    Constructs the Discrete Process Noise Covariance Matrix (Q_k).
+    Takes 1D arrays (length 3) for all noise parameters to strictly model hardware anisotropy.
     """
-    q_v_base = (sigma_vrw**2) * np.eye(3, dtype=np.float64)
-    q_psi_base = (sigma_arw**2) * np.eye(3, dtype=np.float64)
+    # Base thermomechanical noise mapping
+    q_v_base = np.diag(sigma_vrw_vec**2).astype(np.float64)
+    q_psi_base = np.diag(sigma_arw_vec**2).astype(np.float64)
 
+    # Transform body-frame noise spectral densities to navigation frame
     q_v_nav = c_b2n @ q_v_base @ c_b2n.T
     q_psi_nav = c_b2n @ q_psi_base @ c_b2n.T
 
+    # Dynamic scale factor injection for structural resonance modes
     if is_vibrating:
-        q_v_nav += np.diag(accel_var_penalty)
-        q_psi_nav += np.diag(gyro_var_penalty)
+        q_v_nav += np.diag(accel_var_penalty).astype(np.float64)
+        q_psi_nav += np.diag(gyro_var_penalty).astype(np.float64)
 
+    # Temporal integration (Euler method for computational bounds)
     q_v_discrete = q_v_nav * dt
     q_psi_discrete = q_psi_nav * dt
 
-    q_ba_discrete = (sigma_ba_walk**2) * np.eye(3, dtype=np.float64) * dt
-    q_bg_discrete = (sigma_bg_walk**2) * np.eye(3, dtype=np.float64) * dt
+    q_ba_discrete = np.diag(sigma_ba_walk_vec**2).astype(np.float64) * dt
+    q_bg_discrete = np.diag(sigma_bg_walk_vec**2).astype(np.float64) * dt
 
     zero_3x3 = np.zeros((3, 3), dtype=np.float64)
 
+    # Build full covariance geometry
     q_matrix = np.block(
         [
             [zero_3x3, zero_3x3, zero_3x3, zero_3x3, zero_3x3],
@@ -158,8 +163,8 @@ def predict_error_covariance(
     phi_k: np.ndarray, p_prev: np.ndarray, q_k: np.ndarray
 ) -> np.ndarray:
     """
-    Propagates the a priori error covariance matrix via the Discrete Riccati Equation.
-    Enforces absolute symmetry to maintain numerical stability.
+    Propagates the a priori error covariance matrix via Discrete Riccati Equation.
+    Enforces strict matrix symmetry to prevent floating-point eigenvalue corruption.
     """
     p_minus = (phi_k @ p_prev @ phi_k.T) + q_k
     return 0.5 * (p_minus + p_minus.T)

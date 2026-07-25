@@ -4,7 +4,6 @@ from geodesy_math import (
     somig_gravity,
     quat2dcm,
     quat_kin_matrix,
-    skew_sym,
     norm_quat,
     OMEGA_E,
 )
@@ -46,8 +45,8 @@ def posit_lin2ang_matrix(
 
 
 def evaluate_ins_derivatives(
-    state: np.ndarray, f_b: np.ndarray, w_b: np.ndarray
-) -> np.ndarray:
+    state: np.ndarray, f_b: np.ndarray, w_b: np.ndarray, out_dot: np.ndarray
+) -> None:
     """Evaluates de coupled ODE system from Strapdown mecanization
     State Vector: [lat, lon, alt, v_E, v_N, v_U, q0, q1, q2, q3]"""
 
@@ -82,20 +81,92 @@ def evaluate_ins_derivatives(
     matrix_D = posit_lin2ang_matrix(lat, alt, r_m, r_n)
     pos_dot = matrix_D @ v_n_vec
 
-    return np.concatenate((pos_dot, vel_dot, quat_dot), dtype=np.float64)
+    out_dot[0:3] = pos_dot
+    out_dot[3:6] = vel_dot
+    out_dot[6:10] = quat_dot
+
+
+def calc_inver_calibr_matrix(s_ppm: list[float], m_deg: list[float]) -> np.ndarray:
+    """Builds and inverts the (I + M + S) transformation matrix from config_baseline
+    Scale Factor is diagonal while Missalignment is cross-axis
+    This Must Compute just Once during initialization"""
+
+    s = np.array(s_ppm, dtype=np.float64) * 1e6
+    m = np.deg2rad(np.array(m_deg, dtype=np.float64))
+
+    s_mat = np.diag(s)
+
+    # Missalignment as a symmetric matrix with null-elements diagonal
+    m_mat = np.array(
+        [[0.0, m[0], m[1]], [m[0], 0.0, m[2]], [m[1], m[2], 0.0]], dtype=np.float64
+    )
+
+    calib_matrix = np.eye(3, dtype=np.float64) + s_mat + m_mat
+    return np.linalg.inv(calib_matrix)
+
+
+def apply_sensor_calibration(
+    f_raw: np.ndarray,
+    w_raw: np.ndarray,
+    inv_calib_a: np.ndarray,
+    inv_calib_g: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Apply inverse calibration sensor to raw IMU mesaurements"""
+
+    f_calib = inv_calib_a @ f_raw
+    w_calib = inv_calib_g @ w_raw
+
+    return f_calib, w_calib
 
 
 def rk4_integration_step(
-    state: np.ndarray, f_b: np.ndarray, w_b: np.ndarray, dt: float
-) -> np.ndarray:
-    """Execute one-step integration by 4º Order Runge-Kutta Method"""
+    state: np.ndarray,
+    f_b: np.ndarray,
+    w_b: np.ndarray,
+    dt: float,
+    k1: np.ndarray,  # inputs k1, k2, k3, k4, temp_state are, initially, np.zeros((10, 1), dtype=np.float64) arrays
+    k2: np.ndarray,
+    k3: np.ndarray,
+    k4: np.ndarray,
+    temp_state: np.ndarray,
+) -> None:
+    """
+    Executes standard RK4 integration using strictly pre-allocated buffers.
+    Zero dynamic memory allocation. Mutates 'state' array in-place.
+    """
+    # k1
+    evaluate_ins_derivatives(state, f_b, w_b, k1)
 
-    k1 = evaluate_ins_derivatives(state, f_b, w_b)
-    k2 = evaluate_ins_derivatives(state + 0.5 * dt * k1, f_b, w_b)
-    k3 = evaluate_ins_derivatives(state + 0.5 * dt * k2, f_b, w_b)
-    k4 = evaluate_ins_derivatives(state + dt * k3, f_b, w_b)
+    # k2 (temp_state = state + 0.5*dt*k1)
+    temp_state[:] = k1
+    temp_state *= 0.5 * dt
+    temp_state += state
+    evaluate_ins_derivatives(temp_state, f_b, w_b, k2)
 
-    new_state = state + (dt / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
-    new_state[6:10] = norm_quat(new_state[6:10])  # Normalize quaternion
+    # k3 (temp_state = state + 0.5*dt*k2)
+    temp_state[:] = k2
+    temp_state *= 0.5 * dt
+    temp_state += state
+    evaluate_ins_derivatives(temp_state, f_b, w_b, k3)
 
-    return new_state
+    # k4 (temp_state = state + dt*k3)
+    temp_state[:] = k3
+    temp_state *= dt
+    temp_state += state
+    evaluate_ins_derivatives(temp_state, f_b, w_b, k4)
+
+    # Accumulate slopes k in 'temp_state'
+    # temp_state = k1 + 2*k2 + 2*k3 + k4
+    temp_state[:] = k2
+    temp_state += k3
+    temp_state *= 2.0
+    temp_state += k1
+    temp_state += k4
+
+    # Final 'state' update: state = state + (dt/6.0) * temp_state
+    temp_state *= dt / 6.0
+    state += temp_state
+
+    # Strict S3 Manifold Quaternion Normalization
+    q_norm = norm_quat(state[6:10])
+    state[6:10] /= q_norm

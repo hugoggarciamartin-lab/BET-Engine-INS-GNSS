@@ -9,7 +9,7 @@ __pycache__/
 *$py.class
 *.json
 
-.mypy_cache/
+].mypy_cache/
 
 # IDEs
 .vscode/

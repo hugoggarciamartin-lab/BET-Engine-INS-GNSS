@@ -57,6 +57,95 @@ class ConfigParser:
             self.params["r_arm_b"] = np.array(
                 self.raw_data["calibration"]["r_arm_b_m"], dtype=np.float64
             )
+            self.params["s_a_ppm"] = [
+                float(x) for x in self.raw_data["calibration"]["s_a_ppm"]
+            ]
+            self.params["s_g_ppm"] = [
+                float(x) for x in self.raw_data["calibration"]["s_g_ppm"]
+            ]
+            self.params["m_a_deg"] = [
+                float(x) for x in self.raw_data["calibration"]["m_a_deg"]
+            ]
+            self.params["m_g_deg"] = [
+                float(x) for x in self.raw_data["calibration"]["m_g_deg"]
+            ]
+
+            # Sensor Quality & Base Noises
+            self.params["hdop_nominal"] = float(
+                self.raw_data["sensor_quality"]["hdop_nominal"]
+            )
+            self.params["vdop_nominal"] = float(
+                self.raw_data["sensor_quality"]["vdop_nominal"]
+            )
+
+            self.params["sigma_gnss_p"] = np.array(
+                [float(x) for x in self.raw_data["sensor_quality"]["sigma_gnss_p_m"]],
+                dtype=np.float64,
+            )
+            self.params["sigma_gnss_v"] = np.array(
+                [float(x) for x in self.raw_data["sensor_quality"]["sigma_gnss_v_ms"]],
+                dtype=np.float64,
+            )
+            self.params["sigma_baro"] = np.array(
+                [float(x) for x in self.raw_data["sensor_quality"]["sigma_baro_m"]],
+                dtype=np.float64,
+            )
+            self.params["sigma_mag"] = np.array(
+                [float(x) for x in self.raw_data["sensor_quality"]["sigma_mag_ut"]],
+                dtype=np.float64,
+            )
+            self.params["sigma_accel"] = np.array(
+                [float(x) for x in self.raw_data["sensor_quality"]["sigma_accel_ms2"]],
+                dtype=np.float64,
+            )
+            self.params["sigma_gyro"] = np.array(
+                [float(x) for x in self.raw_data["sensor_quality"]["sigma_gyro_rads"]],
+                dtype=np.float64,
+            )
+
+            # Allan Variance Parameters
+            self.params["vrw"] = np.array(
+                [
+                    float(x)
+                    for x in self.raw_data["allan_variance"]["vrw_noise_density"]
+                ],
+                dtype=np.float64,
+            )
+            self.params["accel_bias_inst"] = np.array(
+                [
+                    float(x)
+                    for x in self.raw_data["allan_variance"]["accel_bias_instability"]
+                ],
+                dtype=np.float64,
+            )
+            self.params["accel_corr_time"] = np.array(
+                [
+                    float(x)
+                    for x in self.raw_data["allan_variance"]["accel_correlation_time_s"]
+                ],
+                dtype=np.float64,
+            )
+            self.params["arw"] = np.array(
+                [
+                    float(x)
+                    for x in self.raw_data["allan_variance"]["arw_noise_density"]
+                ],
+                dtype=np.float64,
+            )
+            self.params["gyro_bias_inst"] = np.array(
+                [
+                    float(x)
+                    for x in self.raw_data["allan_variance"]["gyro_bias_instability"]
+                ],
+                dtype=np.float64,
+            )
+            self.params["gyro_corr_time"] = np.array(
+                [
+                    float(x)
+                    for x in self.raw_data["allan_variance"]["gyro_correlation_time_s"]
+                ],
+                dtype=np.float64,
+            )
 
             # Signal Processing
             self.params["filter_cutoff_hz"] = float(
