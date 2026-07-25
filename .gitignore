@@ -8,12 +8,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.json
+
 .mypy_cache/
 
 # IDEs
 .vscode/
 
-# EXCLUSIÓN GLOBAL DE DATOS (Afecta a raw, aligned_data, results y futuras carpetas)
+# EXCLUSIÓN GLOBAL DE DATOS (Afecta a raw, aligned_data, results)
 *.csv
 *.dat
 *.log
