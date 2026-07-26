@@ -17,6 +17,7 @@ def calc_f_matrix_continuous(
     tau_a: np.ndarray,
     tau_g: np.ndarray,
     g_0: float,
+    a_wgs: float,
 ) -> np.ndarray:
     """
     Builds the 15x15 continuous-time system dynamics Jacobian matrix F.
@@ -25,7 +26,7 @@ def calc_f_matrix_continuous(
     """
     v_e, v_n, v_u = v_n_vec[0], v_n_vec[1], v_n_vec[2]
 
-    # 1. Position Error Dynamics
+    # Position Error Dynamics
     f_rr = np.zeros((3, 3), dtype=np.float64)
     f_rv = np.array(
         [
@@ -36,7 +37,7 @@ def calc_f_matrix_continuous(
         dtype=np.float64,
     )
 
-    # 2. Velocity Error Dynamics
+    # Velocity Error Dynamics
     f_vr = np.array(
         [
             [0.0, 0.0, -v_n / ((r_m + alt_m) ** 2)],
@@ -45,7 +46,7 @@ def calc_f_matrix_continuous(
                 0.0,
                 -v_e / ((r_n + alt_m) ** 2),
             ],
-            [0.0, 0.0, (2.0 * g_0) / A_WGS],
+            [0.0, 0.0, (2.0 * g_0) / a_wgs],
         ],
         dtype=np.float64,
     )
@@ -69,7 +70,7 @@ def calc_f_matrix_continuous(
         dtype=np.float64,
     )
 
-    # 3. Attitude Error Dynamics
+    # Attitude Error Dynamics
     w_in_n_att = w_ie_n + w_en_n
     f_psipsi = -np.array(
         [
@@ -80,11 +81,11 @@ def calc_f_matrix_continuous(
         dtype=np.float64,
     )
 
-    # 4. Sensor Bias Error Dynamics (Anisotropic Gauss-Markov models)
+    # Sensor Bias Error Dynamics (Anisotropic Gauss-Markov models)
     f_ba = np.diag(-1.0 / tau_a).astype(np.float64)
     f_bg = np.diag(-1.0 / tau_g).astype(np.float64)
 
-    # 5. Assemble Block Matrix
+    # F matrix assemble
     zero_3x3 = np.zeros((3, 3), dtype=np.float64)
 
     f_matrix = np.block(

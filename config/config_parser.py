@@ -23,6 +23,11 @@ class ConfigParser:
             self.params["e2"] = float(self.raw_data["geodesy"]["e2"])
             self.params["omega_e"] = float(self.raw_data["geodesy"]["omega_e"])
             self.params["g_local"] = float(self.raw_data["geodesy"]["g_e"])
+            self.params["g_e"] = float(self.raw_data["geodesy"]["g_e"])
+            self.params["k"] = float(self.raw_data["geodesy"]["k"])
+            self.params["p0_isa"] = float(self.raw_data["geodesy"]["p0_isa"])
+            self.params["t0_isa"] = float(self.raw_data["geodesy"]["t0_isa"])
+            self.params["l_isa"] = float(self.raw_data["geodesy"]["l_isa"])
 
             # Launch Position
             self.params["phi_0"] = np.deg2rad(
@@ -156,6 +161,12 @@ class ConfigParser:
             )
 
             # Tuning
+            self.params["k_innov_sigma"] = float(
+                self.raw_data["algorithm_tuning"]["k_innov_sigma"]
+            )
+            self.params["k_vib_mult"] = float(
+                self.raw_data["algorithm_tuning"]["k_vib_mult"]
+            )
             self.params["m_vib_window"] = int(
                 self.raw_data["algorithm_tuning"]["m_vib_window"]
             )
@@ -163,6 +174,7 @@ class ConfigParser:
             # Vehicle
             self.params["m_0"] = float(self.raw_data["vehicle"]["m_0_kg"])
             self.params["m_f"] = float(self.raw_data["vehicle"]["m_f_kg"])
+            self.params["s_ref_m2"] = float(self.raw_data["vehicle"]["s_ref_m2"])
 
         except KeyError as e:
             raise KeyError(f"Missing config key: {e}")

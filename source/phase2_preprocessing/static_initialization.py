@@ -68,7 +68,11 @@ class staticInitializer:
         f_mean = self.imu_data[["f_X", "f_Y", "f_Z"]].mean().values
         w_mean = self.imu_data[["w_X", "w_Y", "w_Z"]].mean().values
         m_mean = self.mag_data[["m_X", "m_Y", "m_Z"]].mean().values
-        pos_mean = self.gnss_data[["Lat", "Lon", "Alt"]].mean().values
+        raw_pos = self.gnss_data[["Lat", "Lon", "Alt"]].mean().values
+        pos_mean = np.array(
+            [np.deg2rad(raw_pos[0]), np.deg2rad(raw_pos[1]), raw_pos[2]],
+            dtype=np.float64,
+        )
 
         # Noise Floor Extraction (Standard Deviation)
         f_std = self.imu_data[["f_X", "f_Y", "f_Z"]].std().values
@@ -97,23 +101,23 @@ class staticInitializer:
         x_0[12:15] = b_g0
 
         # Covariance Matrix P_0
-        P_0 = np.zeros((15, 15), dtype=np.float64)
+        P0 = np.zeros((15, 15), dtype=np.float64)
 
         # Position
-        P_0[0:3, 0:3] = np.eye(3) * (self.config["sigma_pos"] ** 2)
+        P0[0:3, 0:3] = np.eye(3) * (self.config["sigma_pos"] ** 2)
         # Velocity
-        P_0[3:6, 3:6] = np.eye(3) * (self.config["sigma_vel"] ** 2)
+        P0[3:6, 3:6] = np.eye(3) * (self.config["sigma_vel"] ** 2)
         #
-        P_0[6, 6] = self.config["sigma_theta_phi"] ** 2
-        P_0[7, 7] = self.config["sigma_theta_phi"] ** 2
-        P_0[8, 8] = self.config["sigma_psi"] ** 2
+        P0[6, 6] = self.config["sigma_theta_phi"] ** 2
+        P0[7, 7] = self.config["sigma_theta_phi"] ** 2
+        P0[8, 8] = self.config["sigma_psi"] ** 2
         # Biases
-        P_0[9:12, 9:12] = np.eye(3) * (self.config["sigma_ba0"] ** 2)
-        P_0[12:15, 12:15] = np.eye(3) * (self.config["sigma_bg0"] ** 2)
+        P0[9:12, 9:12] = np.eye(3) * (self.config["sigma_ba0"] ** 2)
+        P0[12:15, 12:15] = np.eye(3) * (self.config["sigma_bg0"] ** 2)
 
         return {
             "x_0": x_0,
-            "P_0": P_0,
+            "P_0": P0,
             "noise_floor_accel": f_std,
             "noise_floor_gyro": w_std,
         }

@@ -1,43 +1,63 @@
 import numpy as np
-from geodesy_math import skew_sym
+import geodesy_math as mat
+import kinematics_ins as kin
 
 
 def calc_h_matrix(
     r_m: float,
     r_n: float,
-    lat_rad: float,
-    alt_m: float,
+    lat: float,
+    alt: float,
     dcm_b2n: np.ndarray,
     r_arm_b: np.ndarray,
     m_n: np.ndarray,
 ) -> np.ndarray:
-    """Builds the 10x15 Observation Jacobian Matrix H_k.
-    Projects the 15-State Error Vector to the 10-State innovation vector"""
+    """
+    Builds the 10x15 Observation Jacobian Matrix H_k for Closed-Loop ESKF.
+    State Sequence: [delta_r(3), delta_v(3), delta_psi(3), delta_ba(3), delta_bg(3)]
+    Measurements Sequence: [GNSS_Pos(3), GNSS_Vel(3), Baro_Alt(1), Mag_Body(3)]
+    """
+    h_k = np.zeros((10, 15), dtype=np.float64)
 
-    h_matrix = np.zeros((15, 10), dtype=np.float64)
+    # GNSS Position Block
+    h_k[0:3, 0:3] = np.eye(3, dtype=np.float64)
 
-    # GNSS Position
-    h_matrix[0:3, 0:3] = np.array(
-        [
-            [r_m + alt_m, 0.0, 0.0],
-            [0.0, (r_n + alt_m) * np.cos(lat_rad), 0.0],
-            [0.0, 0.0, -1.0],
-        ],
-        dtype=np.float64,
+    r_arm_n = dcm_b2n @ r_arm_b
+    r_arm_n_skew = (
+        mat.skew_symmetric(r_arm_n)
+        if hasattr(mat, "skew_symmetric")
+        else np.array(
+            [
+                [0.0, -r_arm_n[2], r_arm_n[1]],
+                [r_arm_n[2], 0.0, -r_arm_n[0]],
+                [-r_arm_n[1], r_arm_n[0], 0.0],
+            ],
+            dtype=np.float64,
+        )
     )
 
-    # GNSS Velocity
-    r_arm_n = dcm_b2n @ r_arm_b
-    h_matrix[0:3, 6:9] = skew_sym(r_arm_n)
+    h_k[0:3, 6:9] = -r_arm_n_skew
 
-    # Barometer
-    h_matrix[6, 2] = -1.0
+    # GNSS Velocity Block
+    h_k[3:6, 3:6] = np.eye(3, dtype=np.float64)
 
-    # Magnetometer
-    m_b = dcm_b2n.T @ m_n
-    h_matrix[7:10, 6:9] = skew_sym(m_b)
+    # Barometric Altitude Block
+    h_k[6, 2] = -1.0
 
-    return h_matrix
+    # Magnetometer Attitude Block
+    m_n_skew = (
+        mat.skew_symmetric(m_n)
+        if hasattr(mat, "skew_symmetric")
+        else np.array(
+            [[0.0, -m_n[2], m_n[1]], [m_n[2], 0.0, -m_n[0]], [-m_n[1], m_n[0], 0.0]],
+            dtype=np.float64,
+        )
+    )
+
+    h_mag_attitude = -(dcm_b2n.T @ m_n_skew)
+    h_k[7:10, 6:9] = h_mag_attitude
+
+    return h_k
 
 
 def calc_r_matrix(
@@ -111,18 +131,34 @@ def calc_inno_vector(
 
     z_k[3:6] = vel_sens - vel_gnss
     z_k[6] = -(alt_ins - alt_baro)
-    z_k[7:10] = mag_meas - mag_ins
+    z_k[7:10] = mag_meas - dcm_b2n.T @ mag_ins
 
     return z_k
 
 
+def calc_s_k_covariance(
+    p_minus: np.ndarray, h_k: np.ndarray, r_k: np.ndarray
+) -> np.ndarray:
+    """
+    Computes the theoretical innovation covariance envelope S_k.
+    Enforces strict symmetry to prevent floating-point degradation.
+    """
+    s_k = (h_k @ p_minus @ h_k.T) + r_k
+
+    return 0.5 * (s_k + s_k.T)
+
+
 def exe_kalman_update(
-    p_minus: np.ndarray, h_k: np.ndarray, r_k: np.ndarray, z_k: np.ndarray
+    p_minus: np.ndarray,
+    h_k: np.ndarray,
+    r_k: np.ndarray,
+    z_k: np.ndarray,
+    k_innov_sigma: float,
 ) -> tuple[np.ndarray, np.ndarray, bool]:
     """Calculates Kalman Gain K_k, applies 50-sigma innovation trap adn returns State-Error Vector
     as well as Joseph Form Covariance (applies P_plus symmetric covariance matrix)"""
 
-    s_k = (h_k @ p_minus @ h_k.T) + r_k
+    s_k = calc_s_k_covariance(p_minus, h_k, r_k)
 
     try:
         s_k_inv = np.linalg.pinv(s_k)
@@ -131,7 +167,7 @@ def exe_kalman_update(
 
     # Sigma Innovation Trap
     sigmas = np.sqrt(np.diag(s_k))
-    if np.any(np.abs(z_k) > 50.0 * sigmas):
+    if np.any(np.abs(z_k) > k_innov_sigma * sigmas):
         return np.zeros(15, dtype=np.float64), p_minus, False
 
     k_k = p_minus @ h_k.T @ s_k_inv

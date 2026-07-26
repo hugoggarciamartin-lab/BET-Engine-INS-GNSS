@@ -1,17 +1,10 @@
 import numpy as np
-from geodesy_math import (
-    calc_radii,
-    somig_gravity,
-    quat2dcm,
-    quat_kin_matrix,
-    norm_quat,
-    OMEGA_E,
-)
+import geodesy_math as mat
 
 
 def earth_rate_enu(lat_rad: float) -> np.ndarray:
     """Calculates Mean Earth Rate Vector in ENU frame"""
-    return np.array([0.0, OMEGA_E * np.cos(lat_rad), OMEGA_E * np.sin(lat_rad)])
+    return np.array([0.0, mat.OMEGA_E * np.cos(lat_rad), mat.OMEGA_E * np.sin(lat_rad)])
 
 
 def rate_transprt_enu(
@@ -44,6 +37,77 @@ def posit_lin2ang_matrix(
     )
 
 
+def calc_isa_atmosphere(
+    alt_m: float, p0: float, t0: float, l_isa: float, g0: float
+) -> tuple[float, float]:
+    """Calculates Local Temperature and Static Pressure using ISA atmosphere model.
+    Valid for Troposphere and Stratosphere"""
+    h = max(0.0, alt_m)
+    r_air = 287.0528
+
+    # Tropopause Constants
+    h_11 = 11000.0
+    t_11 = t0 - l_isa * h_11
+    p_11 = p0 * (t_11 / t0) ** (g0 / (l_isa * r_air))
+
+    if h <= h_11:
+        # Troposphere: Constant Temperature Gradient
+        t_local = t0 - l_isa * h
+        p_local = p0 * (t_local / t0) ** (g0 / (l_isa * r_air))
+    else:
+        # Stratosphere: Isothermal
+        t_local = t_11
+        p_local = p_11 * np.exp(-g0 * (h - h_11) / (r_air * t_11))
+
+    return float(t_local), float(p_local)
+
+
+def calc_isa_altitude(
+    p_local: np.ndarray, p0_isa: float, t0_isa: float, l_isa: float, g0: float
+) -> np.ndarray:
+    """
+    Calculates Barometric Altitude from Static Pressure using the inverse ISA atmosphere model.
+    Vectorized evaluate both Troposphere (h <= 11000m) and Stratosphere.
+    """
+    r_air = 287.0528
+    h_11 = 11000.0
+
+    # Tropopause boundary constants
+    t_11 = t0_isa - l_isa * h_11
+    p_11 = p0_isa * (t_11 / t0_isa) ** (g0 / (l_isa * r_air))
+
+    # Troposphere: Adiabatic
+    h_tropo = (t0_isa / l_isa) * (1.0 - (p_local / p0_isa) ** ((l_isa * r_air) / g0))
+
+    # Stratosphere: Isothermal
+    p_safe = np.maximum(p_local, 1e-10)
+    h_strato = h_11 - ((r_air * t_11) / g0) * np.log(p_safe / p_11)
+
+    # Select mathematical regime based on local pressure (higher pressure = troposphere)
+    return np.where(p_local > p_11, h_tropo, h_strato)
+
+
+def calc_mach_number(
+    v_n_vec: np.ndarray,
+    alt_m: float,
+    p0_isa: float,
+    t0_isa: float,
+    l_isa: float,
+    g0: float,
+) -> float:
+    """
+    Calculates Local Mach Number by considering de Atmosphere Model ISA.
+    """
+    # ENU frame Velocity True Airspeed (Vector Module) (m/s)
+    v_tas = np.linalg.norm(v_n_vec)
+    # Local tempertaure (K) at an altitude called h
+    t_local, _ = calc_isa_atmosphere(alt_m, p0_isa, t0_isa, l_isa, g0)
+    # Local Sound Velocity
+    a_local = np.sqrt(1.4 * 287.058 * t_local)
+
+    return float(v_tas / a_local)
+
+
 def evaluate_ins_derivatives(
     state: np.ndarray, f_b: np.ndarray, w_b: np.ndarray, out_dot: np.ndarray
 ) -> None:
@@ -55,8 +119,8 @@ def evaluate_ins_derivatives(
     q_b2n = state[6:10]
 
     # Geodesic Parameters
-    r_m, r_n = calc_radii(lat)
-    g_h = somig_gravity(lat, alt)
+    r_m, r_n = mat.calc_radii(lat)
+    g_h = mat.somig_gravity(lat, alt)
 
     # Nav Angular Rates
     w_ie_n = earth_rate_enu(lat)
@@ -64,11 +128,11 @@ def evaluate_ins_derivatives(
     w_in_n = w_ie_n + w_en_n
 
     # Attitude Transformation
-    dcm_b2n = quat2dcm(q_b2n)
+    dcm_b2n = mat.quat2dcm(q_b2n)
 
     # Attitude Derivative by Quaternion
     w_bn_b = w_b - (dcm_b2n.T @ w_in_n)
-    omega_matrix = quat_kin_matrix(w_bn_b)
+    omega_matrix = mat.quat_kin_matrix(w_bn_b)
     quat_dot = 0.5 * (omega_matrix @ q_b2n)
 
     # Velocity Derivative
@@ -97,9 +161,7 @@ def calc_inver_calibr_matrix(s_ppm: list[float], m_deg: list[float]) -> np.ndarr
     s_mat = np.diag(s)
 
     # Missalignment as a symmetric matrix with null-elements diagonal
-    m_mat = np.array(
-        [[0.0, m[0], m[1]], [m[0], 0.0, m[2]], [m[1], m[2], 0.0]], dtype=np.float64
-    )
+    m_mat = mat.skew_sym(m)
 
     calib_matrix = np.eye(3, dtype=np.float64) + s_mat + m_mat
     return np.linalg.inv(calib_matrix)
@@ -124,7 +186,7 @@ def rk4_integration_step(
     f_b: np.ndarray,
     w_b: np.ndarray,
     dt: float,
-    k1: np.ndarray,  # inputs k1, k2, k3, k4, temp_state are, initially, np.zeros((10, 1), dtype=np.float64) arrays
+    k1: np.ndarray,  # inputs k1, k2, k3, k4, temp_state are (First Instant) np.zeros((10, 1), dtype=np.float64) arrays
     k2: np.ndarray,
     k3: np.ndarray,
     k4: np.ndarray,
@@ -168,5 +230,5 @@ def rk4_integration_step(
     state += temp_state
 
     # Strict S3 Manifold Quaternion Normalization
-    q_norm = norm_quat(state[6:10])
+    q_norm = mat.norm_quat(state[6:10])
     state[6:10] /= q_norm

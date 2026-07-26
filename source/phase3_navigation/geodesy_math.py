@@ -86,10 +86,52 @@ def quat_ham_prod(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     return norm_quat(np.array([r0, r1, r2, r3], dtype=np.float64))
 
 
+def eul2quat(roll: float, pitch: float, yaw: float) -> np.ndarray:
+    """
+    Converts Euler Angles (Tait-Bryan ZYX) to a quaternion shaped as [q0, q1, q2, q3]. Assures normalization.
+    """
+    cy = np.cos(yaw * 0.5)
+    sy = np.sin(yaw * 0.5)
+    cp = np.cos(pitch * 0.5)
+    sp = np.sin(pitch * 0.5)
+    cr = np.cos(roll * 0.5)
+    sr = np.sin(roll * 0.5)
+
+    q0 = cr * cp * cy + sr * sp * sy
+    q1 = sr * cp * cy - cr * sp * sy
+    q2 = cr * sp * cy + sr * cp * sy
+    q3 = cr * cp * sy - sr * sp * cy
+
+    return norm_quat(np.array([q0, q1, q2, q3], dtype=np.float64))
+
+
+def quat2eul(q: np.ndarray) -> np.ndarray:
+    """
+    Converts a quaternion [q0, q1, q2, q3] to Euler angles (Tait-Bryan ZYX). Returns the vector [roll, pitch, yaw] in radians
+    """
+    q0, q1, q2, q3 = q[0], q[1], q[2], q[3]
+
+    sinr_cosp = 2.0 * (q0 * q1 + q2 * q3)
+    cosr_cosp = 1.0 - 2.0 * (q1**2 + q2**2)
+    roll = np.arctan2(sinr_cosp, cosr_cosp)
+
+    sinp = 2.0 * (q0 * q2 - q3 * q1)
+    # Protects against precision errors (out of arcos function domain)
+    sinp = np.clip(sinp, -1.0, 1.0)
+    pitch = np.arcsin(sinp)
+
+    # Yaw (Guiñada) - Rotación sobre el eje Z
+    siny_cosp = 2.0 * (q0 * q3 + q1 * q2)
+    cosy_cosp = 1.0 - 2.0 * (q2**2 + q3**2)
+    yaw = np.arctan2(siny_cosp, cosy_cosp)
+
+    return np.array([roll, pitch, yaw], dtype=np.float64)
+
+
 def norm_quat(q: np.ndarray) -> np.ndarray:
     """Force a quaternion to have module with value = 1: Belonging to S^3"""
 
     norm = np.linalg.norm(q)
-    if norm < 1e-12:
+    if not np.isfinite(norm) or norm < 1e-12:
         return np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)
     return (q / norm).astype(np.float64)
