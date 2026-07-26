@@ -18,3 +18,4 @@ __pycache__/
 *.csv
 *.dat
 *.log
+*.npz
