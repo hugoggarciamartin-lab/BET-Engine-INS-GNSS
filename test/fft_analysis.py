@@ -34,11 +34,13 @@ def run_fft_analysis():
     plt.style.use("dark_background")
     fig1, (ax_t1, ax_t2) = plt.subplots(2, 1, figsize=(12, 6))
 
+    # Accelerometer Plot
     ax_t1.plot(time_vector, df["f_X"], color="cyan", linewidth=0.5)
     ax_t1.set_title("Dominio Temporal: Fuerza Específica X (f_X) - BUSCA EL VUELO")
     ax_t1.set_ylabel("m/s^2")
     ax_t1.grid(True, alpha=0.2)
 
+    # Gyro Plot
     ax_t2.plot(time_vector, df["w_Y"], color="magenta", linewidth=0.5)
     ax_t2.set_title("Dominio Temporal: Velocidad Angular Y (w_Y)")
     ax_t2.set_xlabel("Tiempo (s)")
