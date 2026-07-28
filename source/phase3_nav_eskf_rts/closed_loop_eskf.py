@@ -16,7 +16,7 @@ sys.path.append(str(config_dir))
 
 # Imports Arquitecture
 from config.config_parser import ConfigParser
-from phase2_preprocessing.static_initialization import staticInitializer
+from static_initialization import staticInitializer
 import kinematics_ins as kin
 import eskf_predictor as pred
 import eskf_measurement as meas
@@ -39,7 +39,8 @@ def initialize_eskf_mem(n_epo: int) -> dict:
         "rk4_k3": np.zeros((10), dtype=np.float64),
         "rk4_k4": np.zeros((10), dtype=np.float64),
         "rk4_temp": np.zeros((10), dtype=np.float64),
-    }
+    }  # Preassigned zeros arrays for this ESKF Parameters (fixed Buffers)
+    # avoids to consume computing time (Garbage Collection pauses)
 
 
 def inject_error_state(x_nom: np.ndarray, delta_x: np.ndarray) -> None:
@@ -130,36 +131,10 @@ def main_eskf():
 
     # Initial Static Data - Boundary Conditions (x_0, P_0)
     data_dir = project_root / "data" / "raw"
+
+    # Only Use Static Data for: Initial Attitude, Initial IMU Bias, P_0 CoVar Matrix and IMU Noise Floor
     initializer = staticInitializer(data_path=data_dir, config=params)
     initial_data = initializer.gen_initial_state()
-
-    # Static Initialization to memory ('mem'): [lat, lon, alt, vE, vN, vU, q0, q1, q2, q3]
-    mem["x_nom"][0, 0:3] = initial_data["x_0"][0:3]
-    mem["x_nom"][0, 3:6] = initial_data["x_0"][3:6]
-
-    roll, pitch, yaw = initial_data["x_0"][6:9]
-    mem["x_nom"][0, 6:10] = mat.eul2quat(roll, pitch, yaw)
-
-    # Initial-state P_0 covariance matrix
-    mem["P"][0] = initial_data["P_0"]
-
-    bias_a = initial_data["x_0"][9:12].copy()
-    bias_g = initial_data["x_0"][12:15].copy()
-
-    dcm_b2n_0 = mat.quat2dcm(mem["x_nom"][0, 6:10])
-    g_0 = mat.somig_gravity(mem["x_nom"][0, 0], mem["x_nom"][0, 2])
-    g_n = np.array([0.0, 0.0, g_0], dtype=np.float64)
-    expected_f_b = dcm_b2n_0.T @ g_n
-
-    # In case of bias summation fail
-    if np.linalg.norm(bias_a) > 5.0:
-        bias_a -= expected_f_b
-
-    # Vibration Control Initailization
-    noise_floor_a = initial_data["noise_floor_accel"]
-    m_vib = params["m_vib_window"]
-    k_vib = params["k_vib_mult"]
-    accel_window = np.zeros((m_vib, 3), dtype=np.float64)
 
     # Pre-Extract variables from DataFrame
     f_X, f_Y, f_Z = (
@@ -194,6 +169,39 @@ def main_eskf():
     baro_alt = kin.calc_isa_altitude(
         baro_p, params["p0_isa"], params["t0_isa"], params["l_isa"], params["g_e"]
     )
+
+    # Static Initialization to memory ('mem'): [lat, lon, alt, vE, vN, vU, q0, q1, q2, q3]
+    mem["x_nom"][0, 0] = np.deg2rad(gnss_lat[0])
+    mem["x_nom"][0, 1] = np.deg2rad(gnss_lon[0])
+    mem["x_nom"][0, 2] = gnss_alt[0]
+
+    mem["x_nom"][0, 3:6] = np.array(
+        [gnss_vE[0], gnss_vN[0], gnss_vU[0]], dtype=np.float64
+    )
+
+    roll, pitch, yaw = initial_data["x_0"][6:9]
+    mem["x_nom"][0, 6:10] = mat.eul2quat(roll, pitch, yaw)
+
+    # Initial-state P_0 covariance matrix
+    mem["P"][0] = initial_data["P_0"]
+
+    bias_a = initial_data["x_0"][9:12].copy()
+    bias_g = initial_data["x_0"][12:15].copy()
+
+    # In case of 'bias_a' failure
+    dcm_b2n_0 = mat.quat2dcm(mem["x_nom"][0, 6:10])
+    g_0 = mat.somig_gravity(mem["x_nom"][0, 0], mem["x_nom"][0, 2])
+    g_n = np.array([0.0, 0.0, g_0], dtype=np.float64)
+    expected_f_b = dcm_b2n_0.T @ g_n
+    # Fix it in that case
+    if np.linalg.norm(bias_a) > 5.0:
+        bias_a -= expected_f_b
+
+    # Vibration Control Initailization
+    noise_floor_a = initial_data["noise_floor_accel"]
+    m_vib = params["m_vib_window"]
+    k_vib = params["k_vib_mult"]
+    accel_window = np.zeros((m_vib, 3), dtype=np.float64)
 
     # Sensor Calibration Matrix (Just Once)
     calib_a = kin.calc_inver_calibr_matrix(params["s_a_ppm"], params["m_a_deg"])
@@ -243,7 +251,8 @@ def main_eskf():
                 mem["rk4_k3"],
                 mem["rk4_k4"],
                 mem["rk4_temp"],
-            )
+            )  # Preassigned zeros arrays from k1 to k4 and temp_state (fixed Buffers)
+            # avoids to consume computing time (Garbage Collection pauses)
             norm_q = np.linalg.norm(x_k[6:10])
             if not np.isfinite(norm_q) or norm_q < 1e-6:
                 raise ValueError(
@@ -339,21 +348,24 @@ def main_eskf():
                 lon_deg = float(np.rad2deg(lon)) % 360.0
                 if lon_deg > 180.0:
                     lon_deg -= 360.0
-                pt = np.array([[alt_km, lat_deg, lon_deg]])
+
+                pts = np.array([[alt_km, lat_deg, lon_deg]])
                 # Local Magnetic Vector from WMM Grid
                 # Scale Magnetometer units to micro-Teslas
                 m_n = (
                     np.array(
-                        [wmm_interp_E(pt)[0], wmm_interp_N(pt)[0], wmm_interp_U(pt)[0]],
+                        [
+                            wmm_interp_E(pts)[0],
+                            wmm_interp_N(pts)[0],
+                            wmm_interp_U(pts)[0],
+                        ],
                         dtype=np.float64,
                     )
                     * 1e-3
                 )
 
                 # Build Measure Observation Matrix
-                H_k = meas.calc_h_matrix(
-                    r_m, r_n, lat, alt, dcm_b2n, params["r_arm_b"], m_n
-                )
+                H_k = meas.calc_h_matrix(dcm_b2n, params["r_arm_b"], m_n)
 
                 # Measure Noise Matrix
                 R_k = meas.calc_r_matrix(
@@ -376,15 +388,19 @@ def main_eskf():
                 if not has_mag:
                     R_k[7:10, 7:10] += np.eye(3, dtype=np.float64) * 1e9
 
-                # External Observation Vectors - To calculate Residuals z_k
                 pos_gnss = np.array(
-                    [gnss_lat[k], gnss_lon[k], gnss_alt[k]], dtype=np.float64
+                    [np.deg2rad(gnss_lat[k]), np.deg2rad(gnss_lon[k]), gnss_alt[k]],
+                    dtype=np.float64,
                 )
                 vel_gnss = np.array(
                     [gnss_vE[k], gnss_vN[k], gnss_vU[k]], dtype=np.float64
                 )
-                mag_meas = np.array([mag_X[k], mag_Y[k], mag_Z[k]], dtype=np.float64)
-
+                # Hard Ironing - Calibration
+                b_mag_hi = params["m_hi_vec"]
+                mag_meas = (
+                    np.array([mag_X[k], mag_Y[k], mag_Z[k]], dtype=np.float64)
+                    - b_mag_hi
+                )
                 # Kinematic lever arm rotation rate
                 w_bn_b = w_b - (dcm_b2n.T @ (w_ie_n + w_en_n))
 
@@ -432,7 +448,7 @@ def main_eskf():
             mem["x_nom"][0, 10:13] = bias_a
             mem["x_nom"][0, 13:16] = bias_g
             mem["dx"][k] = np.zeros(15, dtype=np.float64)
-            pass
+        pass
     finally:
         gc.enable()
         gc.collect()

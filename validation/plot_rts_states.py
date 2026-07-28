@@ -108,10 +108,9 @@ def plot_trajectory_3d(npz_path: Path):
 
 
 if __name__ == "__main__":
-    npz_file = project_root / "data" / "results" / "eskf_output_state.npz"
+    npz_file = project_root / "data" / "results" / "rts_eskf_output_state.npz"
     if npz_file.exists():
         plot_nominal_kinematics(npz_file)
         plot_trajectory_3d(npz_file)
         plt.show()
-    else
         raise FileNotFoundError(f"Error: missing file at path {npz_file}")

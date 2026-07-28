@@ -4,10 +4,6 @@ import kinematics_ins as kin
 
 
 def calc_h_matrix(
-    r_m: float,
-    r_n: float,
-    lat: float,
-    alt: float,
     dcm_b2n: np.ndarray,
     r_arm_b: np.ndarray,
     m_n: np.ndarray,
@@ -159,10 +155,19 @@ def exe_kalman_update(
 
     s_k = calc_s_k_covariance(p_minus, h_k, r_k)
 
-    try:
-        s_k_inv = np.linalg.pinv(s_k)
+    try:  # Cholesky Factorization
+        L = np.linalg.cholesky(s_k)
+        L_inv = np.linalg.inv(L)
+        s_k_inv = L_inv.T @ L_inv
     except np.linalg.LinAlgError:
-        return np.zeros(15, dtype=np.float64), p_minus, False
+        try:  # Pseudoinverse in case  Cholesky failure
+            s_k_inv = np.linalg.pinv(s_k)
+        except np.linalg.LinAlgError:
+            try:  # Second Exception
+                s_k_inv = np.linalg.pinv(s_k + np.eye(s_k.shape[0] * 1e-12))
+            except np.linalg.LinAlgError:
+                # Failure in S_k matrix: Abort filter actualization
+                return np.zeros(15, dtype=np.float64), p_minus, False
 
     # Sigma Innovation Trap
     sigmas = np.sqrt(np.diag(s_k))

@@ -142,6 +142,10 @@ class ConfigParser:
                 ],
                 dtype=np.float64,
             )
+            self.params["m_hi_vec"] = np.array(
+                [float(x) for x in self.raw_data["sensor_quality"]["m_hi_vec"]],
+                dtype=np.float64,
+            )
 
             # Signal Processing
             self.params["filter_cutoff_hz"] = float(

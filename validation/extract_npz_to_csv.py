@@ -5,7 +5,7 @@ from pathlib import Path
 
 def export_simulation_data() -> None:
     base_dir = Path(__file__).resolve().parent.parent
-    npz_path = base_dir / "data" / "aligned_data" / "eskf_output_state.npz"
+    npz_path = base_dir / "data" / "results" / "eskf_output_state.npz"
     out_dir = base_dir / "data" / "results" / "eskf_csv_results"
 
     if not npz_path.exists():

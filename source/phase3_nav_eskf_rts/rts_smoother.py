@@ -10,81 +10,82 @@ from closed_loop_eskf import inject_error_state
 
 
 def run_rts_smoother():
-    print("Initializing RTS Acausal Smoother (Closed-Loop Architecture)...")
+    """Pass Backward Rauch-Tung-Striebel (RTS) Smoother
+    Uses nominal state x_nom, discrete dynamic system matrix and
+    posteriori/priori covariance matrices"""
 
-    # Input / Output Paths
-    in_path = project_root / "data" / "aligned_data" / "eskf_output_state.npz"
-    out_dir = project_root / "data" / "results"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "rts_eskf_outputs_state.npz"
+    print("Initializing RTS Smoother (Closed-Loop Architecture)...")
+
+    # Inputs and Outputs Path
+    in_path = project_root / "data" / "results" / "eskf_output_state.npz"
+    out_path = project_root / "data" / "results" / "rts_eskf_output_state.npz"
 
     if not in_path.exists():
-        raise FileNotFoundError(
-            f"CRITICAL ERROR: Forward Pass ESKF data missing at {in_path}"
-        )
+        raise FileNotFoundError(f"Error: Forward Pass ESKF data missing at {in_path}")
 
-    # Load Forward Pass Data
+    # Loading ESKF results data
     with np.load(in_path, allow_pickle=True) as data:
         x_nom = data["x_nom"]
         P_plus = data["P"]
         P_minus = data["P_minus"]
         Phi = data["Phi"]
         z = data["z"]
-        Sk_diag = data["Sk_diag"]
+        Sk_diag = data["S_k_diag"]
 
     N = len(x_nom)
 
-    # Allocate RTS Memory
+    # RTS Memory Allocation
     x_rts = np.copy(x_nom)
     P_rts = np.zeros_like(P_plus)
     dx_rts = np.zeros((N, 15), dtype=np.float64)
 
-    # Boundary Condition at final epoch t = N
+    # Boundary Conditionsat at final epoch when t = t_N
     P_rts[-1] = P_plus[-1]
     dx_rts[-1] = np.zeros(15, dtype=np.float64)
 
-    print(f"Propagating certainty backwards for {N} epochs...")
+    print(f"Propagating backwards for {N} epochs")
 
-    # Backward Pass Loop
+    # Backwards Pass Loop
     for k in range(N - 2, -1, -1):
-        # 1. Smoothing Gain A_k (Eq 8.2) - Using pseudo-inverse for strict numerical stability
+        # Matrix Inversion for strict numerical stablity
         try:
-            P_pred_inv = np.linalg.pinv(P_minus[k + 1])
+            # First Try: Cholesky (Requires Positive Definite Symmetric matrix)
+            L = np.linalg.cholesky(P_minus[k + 1])
+            L_inv = np.linalg.inv(L)
+            P_pred_inv = L_inv.T @ L_inv
         except np.linalg.LinAlgError:
             print(
-                f"Warning: Ill-conditioned covariance matrix at epoch {k}. Applying regularization."
+                f"Warning: Cholesky factorization failed at epoch {k}. Trying with pseudo-inverse..."
             )
-            P_pred_inv = np.linalg.pinv(P_minus[k + 1] + np.eye(15) * 1e-12)
+
+            try:
+                P_pred_inv = np.linalg.pinv(P_minus[k + 1])
+            except np.linalg.LinAlgError:
+                P_pred_inv = np.linalg.pinv(P_minus[k + 1] + np.eye(15) * 1e-12)
 
         A_k = P_plus[k] @ Phi[k].T @ P_pred_inv
 
-        # 2. Closed-Loop Error Recursion (Eq 8.4)
+        # Closed Loop Error State Recursion
         dx_rts[k] = A_k @ dx_rts[k + 1]
 
-        # 3. Covariance Recursion (Eq 8.6)
-        P_rts[k] = P_plus[k] + A_k @ (P_rts[k + 1] - P_minus[k + 1]) @ A_k.T
-        P_rts[k] = 0.5 * (P_rts[k] + P_rts[k].T)  # Force strict symmetry
+        # Covariance Matrix Recursion
+        P_rts[k] = P_plus[k] + A_k(P_rts[k + 1] - P_minus[k + 1]) @ A_k.T
 
-        # 4. Retrospective Geometric Injection
-        inject_error_state_rts(x_rts[k], dx_rts[k])
+        # Force Strict Symmetric Matrix
+        P_rts[k] = 0.5 * (P_rts[k] + P_rts[k].T)
 
-    # Exporting BET (Best Estimated Trajectory) keeping identical NPZ structure for seamless plotting
-    np.savez_compressed(
-        out_path,
-        x_nom=x_rts,
-        P=P_rts,
-        z=z,  # Unchanged (Forward Pass innovations)
-        Sk_diag=Sk_diag,  # Unchanged (Forward Pass theoretical envelope)
-    )
+        # Delta_X State Re-injection
+        inject_error_state(x_rts[k], dx_rts[k])
 
-    print(
-        f"RTS Smoothing Complete. Absolute Trajectory (BET) exported to: {out_path.name}"
-    )
+    # Exporting BET (Best Estimated Trajectory) into a NPZ
+    np.savez_compressed(out_path, x_nom=x_rts, P=P_rts, z=z, Sk_diag=Sk_diag)
+
+    print(f"RTS smoothing results exported to {out_path}")
 
 
 if __name__ == "__main__":
     try:
         run_rts_smoother()
     except Exception as e:
-        print(f"RTS SMOOTHER FAILED: {e}")
+        print(f"RTS Smoother Failure: {e}")
         sys.exit(1)

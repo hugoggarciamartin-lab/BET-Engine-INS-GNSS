@@ -193,11 +193,13 @@ def rk4_integration_step(
     temp_state: np.ndarray,
 ) -> None:
     """
-    Executes standard RK4 integration using strictly pre-allocated buffers.
-    Zero dynamic memory allocation. Mutates 'state' array in-place.
+    Performs standard Runge-Kutta 4th order (RK4) numerical integration.
+    Instead of creating new variables or temporary lists at every step (which
+    slows down the computer and creates memory waste), this function uses
+    pre-allocated memory arrays that were prepared beforehand.It directly
+    updates and modifies the original 'state' array in-place, making the
+    calculation extremely fast
     """
-
-    evaluate_ins_derivatives(temp_state, f_b, w_b, k2)
 
     # k1
     evaluate_ins_derivatives(state, f_b, w_b, k1)
@@ -222,3 +224,9 @@ def rk4_integration_step(
     temp_state += state
     temp_state[6:10] = mat.norm_quat(temp_state[6:10])
     evaluate_ins_derivatives(temp_state, f_b, w_b, k4)
+
+    # Final assembly for RK4 integration
+    state += (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+
+    # Last quaternion normalization
+    state[6:10] = mat.norm_quat(state[6:10])
