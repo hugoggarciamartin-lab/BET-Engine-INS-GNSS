@@ -5,14 +5,12 @@ from pathlib import Path
 from scipy.interpolate import interp1d
 
 project_root = Path(__file__).resolve().parent.parent.parent
-# Add the variable "project_root" to the path as a string
 sys.path.append(str(project_root))
 
 
 class temporalAligner:
-    """Sychronizes multi-rate telemetry onto a single hig-freq master time scale
-    Uses linear interpolation to prevent spline-induced overshoots
-    (Runge Phenomenon)"""
+    """Synchronizes multi-rate telemetry onto a single high-freq master time scale
+    using Zero-Order Hold (ZOH) to prevent non-causal data injection."""
 
     def __init__(self, aligned_dir: Path, raw_dir: Path):
         self.aligned_dir = aligned_dir
@@ -44,7 +42,7 @@ class temporalAligner:
         return 1.0
 
     def align_telem(self) -> None:
-        print("Initializaing Temporal Aligner")
+        print("Initializing Temporal Aligner")
 
         imu_file = self.aligned_dir / "conditioned_flight_data_imu.csv"
 
@@ -76,7 +74,7 @@ class temporalAligner:
 
         df_master = pd.DataFrame({"time": t_master})
 
-        # Write the interpolated data from IMU channels
+        # Write the aligned data from IMU channels
         for col in df_imu.columns:
             if col != "time":
                 df_master[col] = df_imu[col].values[valid_id]
@@ -84,17 +82,18 @@ class temporalAligner:
         def _interpolate_sensor(df_sensor: pd.DataFrame, prefix: str):
             for col in df_sensor.columns:
                 if col != "time":
-                    # Linear interpolation for external reference measures
+                    # Zero-Order Hold (ZOH) interpolation using 'previous'
+                    # Preserves strict causality for post-processing Kalman Filters
                     interpol = interp1d(
                         df_sensor["time"].values,
                         df_sensor[col].values,
-                        kind="linear",
-                        bounds_error=True,
+                        kind="previous",
+                        bounds_error=False,
+                        fill_value="extrapolate",
                     )
-                    # Adding the Prefix for each Sensor
                     df_master[f"{prefix}_{col}"] = interpol(t_master)
 
-        print("Applying linear interpolation to low-freq channels...")
+        print("Applying Zero-Order Hold (ZOH) to low-freq channels...")
         _interpolate_sensor(df_gnss, "gnss")
         _interpolate_sensor(df_mag, "mag")
         _interpolate_sensor(df_baro, "baro")

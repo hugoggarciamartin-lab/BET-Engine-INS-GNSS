@@ -29,15 +29,6 @@ class ConfigParser:
             self.params["t0_isa"] = float(self.raw_data["geodesy"]["t0_isa"])
             self.params["l_isa"] = float(self.raw_data["geodesy"]["l_isa"])
 
-            # Launch Position
-            self.params["phi_0"] = np.deg2rad(
-                float(self.raw_data["launch_pad"]["lat_0_deg"])
-            )
-            self.params["lam_0"] = np.deg2rad(
-                float(self.raw_data["launch_pad"]["lon_0_deg"])
-            )
-            self.params["h_0"] = float(self.raw_data["launch_pad"]["h_0_m"])
-
             # Covariance P0
             self.params["sigma_pos"] = float(
                 self.raw_data["initial_uncertainty"]["sigma_pos_m"]
@@ -175,6 +166,9 @@ class ConfigParser:
             self.params["m_0"] = float(self.raw_data["vehicle"]["m_0_kg"])
             self.params["m_f"] = float(self.raw_data["vehicle"]["m_f_kg"])
             self.params["s_ref_m2"] = float(self.raw_data["vehicle"]["s_ref_m2"])
+            self.params["time_eng_off"] = float(
+                self.raw_data["vehicle"]["time_eng_off"]
+            )
 
         except KeyError as e:
             raise KeyError(f"Missing config key: {e}")

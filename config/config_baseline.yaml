@@ -9,12 +9,6 @@ geodesy:
   t0_isa: 288.15
   l_isa: 0.0065
 
-# GEOGRAPHIC ANCHOR (VALENCIA PAD)
-launch_pad:
-  lat_0_deg: 39.4811
-  lon_0_deg: -0.3444
-  h_0_m: 15.0
-
 # INITIAL UNCERTAINTY MATRIX (P0)
 initial_uncertainty:
   sigma_pos_m: 4.0
@@ -68,3 +62,4 @@ vehicle:
   m_0_kg: 250.0
   m_f_kg: 100.0
   s_ref_m2: 0.07
+  time_eng_off: 25

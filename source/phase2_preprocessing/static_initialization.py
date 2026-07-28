@@ -83,8 +83,8 @@ class staticInitializer:
         w_earth_enu = np.array(
             [
                 0.0,
-                self.omega_e * np.cos(self.config["phi_0"]),
-                self.omega_e * np.sin(self.config["phi_0"]),
+                self.omega_e * np.cos(pos_mean[0]),
+                self.omega_e * np.sin(pos_mean[0]),
             ]
         )
 
@@ -132,7 +132,6 @@ if __name__ == "__main__":
     test_config = {
         "omega_e": 7.292115e-5,
         "g_local": 9.801,
-        "phi_0": np.deg2rad(39.4811),
         "sigma_pos": 4.0,  # m
         "sigma_vel": 0.1,  # m/s
         "sigma_theta_phi": np.deg2rad(0.05),  # converted to rad
