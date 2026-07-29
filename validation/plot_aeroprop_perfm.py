@@ -5,11 +5,17 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from scipy.interpolate import interp1d
 
+# Grant access to repo paths to export
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
+# Grant access to import BET Engine Libraries
+phase3_dir = project_root / "source" / "phase3_nav_eskf_rts"
+sys.path.append(str(phase3_dir))
+
+import source.phase3_nav_eskf_rts.geodesy_math as mat
 from config.config_parser import ConfigParser
-from source.phase3_navigation.kinematics_ins import (
+from source.phase3_nav_eskf_rts.kinematics_ins import (
     calc_isa_atmosphere,
     calc_mach_number,
 )
@@ -18,8 +24,9 @@ from source.phase3_navigation.kinematics_ins import (
 def interp_cfd_drag(mach_query: np.ndarray, cfd_path: Path) -> np.ndarray:
     """1d interpolation of theoretical aerodynamic drag coefficient vs mach."""
     df = pd.read_csv(cfd_path)
+
     interpolator = interp1d(
-        df["mach"].values, df["cd"].values, kind="linear", fill_value="extrapolate"
+        df["Mach"].values, df["C_D_CFD"].values, kind="linear", fill_value="extrapolate"
     )
     return interpolator(mach_query)
 
@@ -132,7 +139,7 @@ def plot_reconstructed_drag(
                 cfg["g_e"],
             )
 
-            # eq 9.6: invert drag equation
+            # Invert drag equation
             denom = 0.5 * rho * (v_tas[i] ** 2) * cfg["s_ref_m2"]
             if denom > 1e-3:
                 cd_rec[c] = (-mass_arr[i] * f_real_x[i]) / denom
@@ -142,11 +149,13 @@ def plot_reconstructed_drag(
             mach_coast[c] = mach
             c += 1
 
+    time_coast = time_arr[idx_eng_off]
+
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(mach_coast, cd_rec, "k.", markersize=2, label="empirical drag coefficient")
-    ax.set_title("aerodynamic validation: reconstructed cd vs mach")
+    ax.plot(time_coast, cd_rec, "k.", markersize=2, label="empirical drag coefficient")
+    ax.set_title("aerodynamic validation: reconstructed cd vs time")
     ax.set_ylabel("cd")
-    ax.set_xlabel("mach number")
+    ax.set_xlabel("time (s)")
     ax.grid(True, ls="--", alpha=0.5)
     ax.legend()
     fig.tight_layout()

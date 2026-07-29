@@ -4,12 +4,12 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict
 
-# Enrutamiento estricto a las librerías matemáticas de la Fase 3
 project_root = Path(__file__).resolve().parent.parent.parent
 phase3_dir = project_root / "source" / "phase3_nav_eskf_rts"
 sys.path.append(str(phase3_dir))
 
 import geodesy_math as mat
+import kinematics_ins as kin
 
 
 class staticInitializer:
@@ -24,9 +24,21 @@ class staticInitializer:
         self.mag_data = pd.DataFrame()
         self.gnss_data = pd.DataFrame()
 
+        # Pre-defined global constants
         self.omega_e = self.config["omega_e"]
         self.g_local = self.config["g_local"]
+
+        # Hard and Soft Iron calibration requirement from Magnetometer - for Attitude Extraction
         self.m_hi_vec = self.config.get("m_hi_vec", np.zeros(3, dtype=np.float64))
+        self.m_si_mat = self.config.get("m_si_mat", np.eye(3, dtype=np.float64))
+        # Invert Matrix to apply it into ESKF
+        self.inv_m_si = np.linalg.inv(self.m_si_mat)
+
+        # IMU Calibration Matrices
+        self.s_a_ppm = self.config["s_a_ppm"]
+        self.s_g_ppm = self.config["s_g_ppm"]
+        self.m_a_deg = self.config["m_a_deg"]
+        self.m_g_deg = self.config["m_g_deg"]
 
     def load_telem(self) -> None:
         """Loads the raw pre-ignition asynchronous datasets."""
@@ -71,12 +83,20 @@ class staticInitializer:
         print("Constructing initial state vector x_0 and covariance matrix P_0...")
 
         # Averaging time-based vector for each channel
-        f_mean = self.imu_data[["f_X", "f_Y", "f_Z"]].mean().values
-        w_mean = self.imu_data[["w_X", "w_Y", "w_Z"]].mean().values
+        f_mean_raw = self.imu_data[["f_X", "f_Y", "f_Z"]].mean().values
+        w_mean_raw = self.imu_data[["w_X", "w_Y", "w_Z"]].mean().values
         m_mean_raw = self.mag_data[["m_X", "m_Y", "m_Z"]].mean().values
 
-        # Applying Hard-Ironing (m_hi_vec): Before computing Attitude Angles
-        m_mean = m_mean_raw - self.m_hi_vec
+        # Build Calibration Matrices
+        calib_a = kin.calc_inver_calibr_matrix(self.s_a_ppm, self.m_a_deg)
+        calib_g = kin.calc_inver_calibr_matrix(self.s_g_ppm, self.m_g_deg)
+
+        # Applying IMU calibration
+        f_mean = calib_a @ f_mean_raw
+        w_mean = calib_g @ w_mean_raw
+
+        # Applying Hard-Iron Bias and Soft-Iron Matrix (m_hi_vec, m_si_mat): Before computing Attitude Angles
+        m_mean = self.inv_m_si @ (m_mean_raw - self.m_hi_vec)
 
         # Mean from GNSS measures
         raw_pos = self.gnss_data[["Lat", "Lon", "Alt"]].mean().values
@@ -97,7 +117,7 @@ class staticInitializer:
             ]
         )
 
-        # Flujo estricto: Euler -> Cuaternión -> DCM para garantizar coherencia en el motor BET
+        # Quaternion Attitude Representation
         q0 = mat.eul2quat(euler0[0], euler0[1], euler0[2])
         C_b2n = mat.quat2dcm(q0)
 
@@ -110,7 +130,7 @@ class staticInitializer:
         veloc0 = np.array([0.0, 0.0, 0.0])
 
         x_0 = np.zeros(15, dtype=np.float64)
-        x_0[:3] = pos_mean
+        x_0[0:3] = pos_mean
         x_0[3:6] = veloc0
         x_0[6:9] = euler0
         x_0[9:12] = b_a0
@@ -137,18 +157,19 @@ if __name__ == "__main__":
     project_root = Path(__file__).resolve().parent.parent.parent
     data_dir = project_root / "data" / "raw"
 
-    test_config = {
-        "omega_e": 7.292115e-5,
-        "g_local": 9.801,
-        "sigma_pos": 4.0,
-        "sigma_vel": 0.1,
-        "sigma_theta_phi": np.deg2rad(0.05),
-        "sigma_psi": np.deg2rad(5.0),
-        "sigma_ba0": 0.02,
-        "sigma_bg0": 0.01,
-    }
+    config_dir = project_root / "config"
+    sys.path.append(str(project_root))
+    from config.config_parser import ConfigParser
 
-    initializer = staticInitializer(data_path=data_dir, config=test_config)
+    config_path = config_dir / "config_baseline.yaml"
+
+    if not config_path.exists():
+        sys.exit(1)
+
+    parser = ConfigParser(config_path)
+    real_config = parser.parse()
+
+    initializer = staticInitializer(data_path=data_dir, config=real_config)
     initial_data = initializer.gen_initial_state()
 
     print("ESKF BOUNDARY CONDITIONS (x_0, P_0)")

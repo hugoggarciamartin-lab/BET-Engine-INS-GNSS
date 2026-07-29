@@ -11,6 +11,9 @@ def execute_bet_pipeline():
     project_root = Path(__file__).resolve().parent
 
     # Establishing de Path to the Project Scripts
+    filtering_script = (
+        project_root / "source" / "phase2_preprocessing" / "signal_conditioning.py"
+    )
     aligner_script = (
         project_root / "source" / "phase2_preprocessing" / "temporal_aligner.py"
     )
@@ -20,6 +23,7 @@ def execute_bet_pipeline():
     rts_script = project_root / "source" / "phase3_nav_eskf_rts" / "rts_smoother.py"
 
     pipeline_phases = [
+        ("IMU Signal Preprocessing (Phase 2)", filtering_script),
         ("Temporal Alignment (Phase 2)", aligner_script),
         ("ESKF Forward Pass (Phase 3)", eskf_script),
         ("RTS Acausal Smoother (POST)", rts_script),

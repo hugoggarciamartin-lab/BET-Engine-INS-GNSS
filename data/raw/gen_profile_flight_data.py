@@ -1,13 +1,19 @@
+import sys
 import numpy as np
 import pandas as pd
 import gc
 from pathlib import Path
 
-raw_dir = Path(__file__).resolve().parent
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(project_root))
+from config.config_parser import ConfigParser
 
 
 def generate_flight_profile():
-    # TEMPORAL ALLOCATION
+    config_path = project_root / "config" / "config_baseline.yaml"
+    parser = ConfigParser(config_path)
+    cfg = parser.parse()
+
     duration = 120.0
     f_imu, f_gnss, f_baro, f_mag = 400.0, 10.0, 20.0, 20.0
 
@@ -18,20 +24,24 @@ def generate_flight_profile():
     t_baro = np.arange(0.05, duration, 1.0 / f_baro, dtype=np.float64)
     t_mag = np.arange(0.02, duration, 1.0 / f_mag, dtype=np.float64)
 
-    # BASELINE CONSTANTS
     phi_0 = np.deg2rad(39.4811)
     lam_0 = np.deg2rad(-0.3444)
     h_0 = 15.0
-    a, e2, g_e, k_el = 6378137.0, 0.00669437999, 9.7803253359, 0.001931852652
-    Omega_e = 7.292115e-5
-    P0_isa, T0_isa, L_isa, R_air = 101325.0, 288.15, 0.0065, 287.0528
+
+    a = cfg["a"]
+    e2 = cfg["e2"]
+    g_e = cfg["g_e"]
+    k_el = cfg["k"]
+    Omega_e = cfg["omega_e"]
+    P0_isa = cfg["p0_isa"]
+    T0_isa = cfg["t0_isa"]
+    L_isa = cfg["l_isa"]
+    R_air = 287.0528
 
     g_0 = g_e * (1 + k_el * np.sin(phi_0) ** 2) / np.sqrt(1 - e2 * np.sin(phi_0) ** 2)
 
     np.random.seed(202)
 
-    # KINEMATIC INTEGRATION (1D Vertical Approximation for synthetic targets)
-    # This creates the "Truth" state to generate sensor readings.
     def get_kinematics(t_array):
         h = np.zeros_like(t_array)
         v = np.zeros_like(t_array)
@@ -42,39 +52,49 @@ def generate_flight_profile():
             t = t_array[i]
 
             if t < 5.0:
-                acc[i] = 0.0  # Pad
-            elif 5.0 <= t < 25.0:
-                acc[i] = 45.0  # Motor burn (~4.5G)
+                acc[i] = 0.0
+            elif 5.0 <= t < cfg["time_eng_off"]:
+                acc[i] = 45.0
             else:
                 acc[i] = -9.81 - (0.002 * v[i - 1] * np.abs(v[i - 1]))
 
             v[i] = v[i - 1] + acc[i] * dt
             h[i] = h[i - 1] + v[i] * dt
             if h[i] < h_0:
-                h[i] = h_0  # Ground limit
+                h[i] = h_0
 
         return h, v, acc
 
-    # Extract truth for all grids
     h_truth_imu, v_truth_imu, acc_truth_imu = get_kinematics(t_imu)
     h_truth_gnss, v_truth_gnss, _ = get_kinematics(t_gnss)
     h_truth_baro, v_truth_baro, _ = get_kinematics(t_baro)
 
-    # IMU GENERATION (Injecting Vibration)
     f_raw = np.zeros((len(t_imu), 3), dtype=np.float64)
     w_raw = np.zeros((len(t_imu), 3), dtype=np.float64)
 
+    noise_floor_accel = 0.05
+    noise_floor_gyro = 0.01
+
     for i, t in enumerate(t_imu):
-        # Specific force: kinematic acceleration + gravity reaction
         f_z = acc_truth_imu[i] + g_0
 
-        # Base noise
-        n_accel = np.random.normal(0, 0.05, 3)
-        n_gyro = np.random.normal(0, 0.01, 3)
+        n_accel = np.array(
+            [
+                np.random.normal(0, noise_floor_accel),
+                np.random.normal(0, noise_floor_accel),
+                np.random.normal(0, noise_floor_accel),
+            ]
+        )
+        n_gyro = np.array(
+            [
+                np.random.normal(0, noise_floor_gyro),
+                np.random.normal(0, noise_floor_gyro),
+                np.random.normal(0, noise_floor_gyro),
+            ]
+        )
 
-        # Exception: Inject structural vibration during rocket burn
-        if 5.0 <= t < 25.0:
-            n_accel += np.random.normal(0, 5.0, 3)  # Massive variance inflation
+        if 5.0 <= t < cfg["time_eng_off"]:
+            n_accel += np.random.normal(0, 5.0, 3)
             n_gyro += np.random.normal(0, 0.5, 3)
 
         f_raw[i] = [n_accel[0], n_accel[1], f_z + n_accel[2]]
@@ -84,37 +104,61 @@ def generate_flight_profile():
             Omega_e * np.sin(phi_0) + n_gyro[2],
         ]
 
-    # GNSS GENERATION
-    gnss_phi = phi_0 + np.random.normal(0, 4.0 / a, len(t_gnss))
-    gnss_lam = lam_0 + np.random.normal(0, 4.0 / a, len(t_gnss))
-    gnss_h = h_truth_gnss + np.random.normal(0, 4.0, len(t_gnss))
+    sigma_p = cfg["sigma_gnss_p"]
+    sigma_v = cfg["sigma_gnss_v"]
 
-    gnss_vE = np.random.normal(0, 0.1, len(t_gnss))
-    gnss_vN = np.random.normal(0, 0.1, len(t_gnss))
-    gnss_vU = v_truth_gnss + np.random.normal(0, 0.2, len(t_gnss))
+    gnss_phi = phi_0 + np.random.normal(0, sigma_p[0] / a, len(t_gnss))
+    gnss_lam = lam_0 + np.random.normal(0, sigma_p[1] / a, len(t_gnss))
+    gnss_h = h_truth_gnss + np.random.normal(0, sigma_p[2], len(t_gnss))
 
-    # BAROMETER GENERATION (Injecting Venturi Effect)
+    gnss_vE = np.random.normal(0, sigma_v[0], len(t_gnss))
+    gnss_vN = np.random.normal(0, sigma_v[1], len(t_gnss))
+    gnss_vU = v_truth_gnss + np.random.normal(0, sigma_v[2], len(t_gnss))
+
     baro_P = np.zeros(len(t_baro), dtype=np.float64)
     for i, t in enumerate(t_baro):
-        # Standard ISA pressure
         P_nominal = P0_isa * (1 - (L_isa * h_truth_baro[i]) / T0_isa) ** (
             g_0 / (R_air * L_isa)
         )
 
-        # Exception: Inject Venturi parasitic drop based on dynamic pressure (q = 0.5 * rho * v^2)
-        # Assuming simplified rho~1.2 for transonic regime severity scaling
         venturi_drop = 0.0
         if v_truth_baro[i] > 150.0:
-            venturi_drop = 0.005 * (v_truth_baro[i] ** 2)  # Suction
+            venturi_drop = 0.005 * (v_truth_baro[i] ** 2)
 
         baro_P[i] = P_nominal - venturi_drop + np.random.normal(0, 10.0)
 
-    # MAGNETOMETER GENERATION
-    m_nominal = np.array([24.5, 3.2, 38.1], dtype=np.float64)
-    mag_raw = m_nominal + np.random.normal(0, 0.5, (len(t_mag), 3))
+    m_enu = np.array([0.5, 24.5, 38.1], dtype=np.float64)
+    b_hard_iron = cfg["m_hi_vec"]
+    M_soft_iron = cfg["m_si_mat"]
 
-    # EXPORT
-    print("Exporting flight profile datasets...")
+    mag_raw = np.zeros((len(t_mag), 3), dtype=np.float64)
+    roll_rate = 2.0 * np.pi * 2.0
+    sigma_m = cfg["sigma_mag"]
+
+    for i, t in enumerate(t_mag):
+        roll = roll_rate * t
+
+        C_n2b = np.array(
+            [
+                [np.cos(roll), np.sin(roll), 0.0],
+                [-np.sin(roll), np.cos(roll), 0.0],
+                [0.0, 0.0, 1.0],
+            ],
+            dtype=np.float64,
+        )
+        m_body = C_n2b @ m_enu
+        m_distorted = M_soft_iron @ m_body + b_hard_iron
+
+        mag_raw[i] = m_distorted + np.array(
+            [
+                np.random.normal(0, sigma_m[0]),
+                np.random.normal(0, sigma_m[1]),
+                np.random.normal(0, sigma_m[2]),
+            ]
+        )
+
+    raw_dir = project_root / "data" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     pd.DataFrame(
         {
@@ -143,6 +187,7 @@ def generate_flight_profile():
     pd.DataFrame({"time": t_baro, "P_static": baro_P}).to_csv(
         raw_dir / "flight_data_baro.csv", index=False, float_format="%.8f"
     )
+
     pd.DataFrame(
         {
             "time": t_mag,
@@ -152,7 +197,6 @@ def generate_flight_profile():
         }
     ).to_csv(raw_dir / "flight_data_mag.csv", index=False, float_format="%.8f")
 
-    print("Flight datasets generated successfully.")
     gc.enable()
 
 

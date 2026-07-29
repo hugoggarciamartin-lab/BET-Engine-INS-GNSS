@@ -26,9 +26,6 @@ sensor_quality:
   sigma_gnss_v_ms: [0.050, 0.050, 0.100]
   sigma_baro_m: [0.000, 0.000, 1.500]
   sigma_mag_ut: [0.300, 0.300, 0.300]
-  sigma_accel_ms2: [0.049659, 0.049903, 0.050111]
-  sigma_gyro_rads: [0.009925, 0.010047, 0.010019]
-  m_hi_vec: [11.4, 21.4, 53.1] # Hard Ironing (microTeslas)
 
 # ALLAN VARIANCE STOCHASTIC PARAMETERS
 allan_variance:
@@ -46,6 +43,11 @@ calibration:
   s_g_ppm: [345.1, 355.8, 330.4] # X, Y, Z
   m_a_deg: [0.05, -0.02, 0.03] # Coupled Missalignments in accelerometers: XY, XZ, YZ
   m_g_deg: [0.02, 0.01, -0.04] # Coupled Missalignments in gyros: XY, XZ, YZ
+  m_hi_vec: [11.4, 21.4, 53.1] # Hard Iron (microTeslas)
+  m_si_mat: # Soft Iron Matrix
+    - [1.05, 0.02, -0.01]
+    - [0.02, 0.95, 0.03]
+    - [-0.01, 0.03, 1.02]
 
 # SIGNAL PROCESSING
 signal_processing:

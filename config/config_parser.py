@@ -66,6 +66,16 @@ class ConfigParser:
                 float(x) for x in self.raw_data["calibration"]["m_g_deg"]
             ]
 
+            self.params["m_si_mat"] = np.array(
+                self.raw_data["calibration"]["m_si_mat"],
+                dtype=np.float64,
+            )
+
+            self.params["m_hi_vec"] = np.array(
+                [float(x) for x in self.raw_data["calibration"]["m_hi_vec"]],
+                dtype=np.float64,
+            )
+
             # Sensor Quality & Base Noises
             self.params["hdop_nominal"] = float(
                 self.raw_data["sensor_quality"]["hdop_nominal"]
@@ -88,14 +98,6 @@ class ConfigParser:
             )
             self.params["sigma_mag"] = np.array(
                 [float(x) for x in self.raw_data["sensor_quality"]["sigma_mag_ut"]],
-                dtype=np.float64,
-            )
-            self.params["sigma_accel"] = np.array(
-                [float(x) for x in self.raw_data["sensor_quality"]["sigma_accel_ms2"]],
-                dtype=np.float64,
-            )
-            self.params["sigma_gyro"] = np.array(
-                [float(x) for x in self.raw_data["sensor_quality"]["sigma_gyro_rads"]],
                 dtype=np.float64,
             )
 
@@ -140,10 +142,6 @@ class ConfigParser:
                     float(x)
                     for x in self.raw_data["allan_variance"]["gyro_correlation_time_s"]
                 ],
-                dtype=np.float64,
-            )
-            self.params["m_hi_vec"] = np.array(
-                [float(x) for x in self.raw_data["sensor_quality"]["m_hi_vec"]],
                 dtype=np.float64,
             )
 

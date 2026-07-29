@@ -48,8 +48,8 @@ def inject_error_state(x_nom: np.ndarray, delta_x: np.ndarray) -> None:
     r_m, r_n = mat.calc_radii(x_nom[0])
 
     # Position Injection (Geodetics via radii transformation)
-    x_nom[0] -= delta_x[0] / (r_m + x_nom[2])
-    x_nom[1] -= delta_x[1] / ((r_n + x_nom[2]) * np.cos(x_nom[0]))
+    x_nom[0] -= delta_x[1] / (r_m + x_nom[2])
+    x_nom[1] -= delta_x[0] / ((r_n + x_nom[2]) * np.cos(x_nom[0]))
     x_nom[2] -= delta_x[2]  # Alt (Up)
 
     # Velocity Injection
@@ -132,7 +132,7 @@ def main_eskf():
     # Initial Static Data - Boundary Conditions (x_0, P_0)
     data_dir = project_root / "data" / "raw"
 
-    # Only Use Static Data for: Initial Attitude, Initial IMU Bias, P_0 CoVar Matrix and IMU Noise Floor
+    # Only Use Static Data for: Initial Attitude, Initial IMU Bias, P_0 CoVar Matrix (Uncertainaty) and IMU Noise Floor
     initializer = staticInitializer(data_path=data_dir, config=params)
     initial_data = initializer.gen_initial_state()
 
@@ -187,15 +187,6 @@ def main_eskf():
 
     bias_a = initial_data["x_0"][9:12].copy()
     bias_g = initial_data["x_0"][12:15].copy()
-
-    # In case of 'bias_a' failure
-    dcm_b2n_0 = mat.quat2dcm(mem["x_nom"][0, 6:10])
-    g_0 = mat.somig_gravity(mem["x_nom"][0, 0], mem["x_nom"][0, 2])
-    g_n = np.array([0.0, 0.0, g_0], dtype=np.float64)
-    expected_f_b = dcm_b2n_0.T @ g_n
-    # Fix it in that case
-    if np.linalg.norm(bias_a) > 5.0:
-        bias_a -= expected_f_b
 
     # Vibration Control Initailization
     noise_floor_a = initial_data["noise_floor_accel"]
@@ -333,7 +324,7 @@ def main_eskf():
 
             # Initialize P-minus using Phi, P_0 and Q_k
             P_minus = pred.predict_error_covariance(Phi_k, P_prev, Q_k)
-            mem["P_"] = P_minus
+            mem["P_"][k] = P_minus
 
             # ----- MEASUREMENT BLOCK -----
             # Set measures matching
@@ -395,13 +386,17 @@ def main_eskf():
                 vel_gnss = np.array(
                     [gnss_vE[k], gnss_vN[k], gnss_vU[k]], dtype=np.float64
                 )
-                # Hard Ironing - Calibration
+                # Hard Iron/Soft Iron - Calibration
                 b_mag_hi = params["m_hi_vec"]
-                mag_meas = (
-                    np.array([mag_X[k], mag_Y[k], mag_Z[k]], dtype=np.float64)
-                    - b_mag_hi
-                )
-                # Kinematic lever arm rotation rate
+
+                # Invert Soft Iron Matrix
+                inv_m_si = np.linalg.inv(params["m_si_mat"])
+
+                # Magnetometer eaw data
+                m_raw = np.array([mag_X[k], mag_Y[k], mag_Z[k]], dtype=np.float64)
+                mag_meas = inv_m_si @ (m_raw - b_mag_hi)
+
+                # Kinematic lever-arm rotation rate
                 w_bn_b = w_b - (dcm_b2n.T @ (w_ie_n + w_en_n))
 
                 z_k = meas.calc_inno_vector(
@@ -445,8 +440,8 @@ def main_eskf():
                 mem["P"][k] = P_minus
 
             # Reset error state vector
-            mem["x_nom"][0, 10:13] = bias_a
-            mem["x_nom"][0, 13:16] = bias_g
+            mem["x_nom"][k, 10:13] = bias_a
+            mem["x_nom"][k, 13:16] = bias_g
             mem["dx"][k] = np.zeros(15, dtype=np.float64)
         pass
     finally:

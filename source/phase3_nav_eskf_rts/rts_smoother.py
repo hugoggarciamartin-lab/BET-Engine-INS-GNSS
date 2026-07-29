@@ -5,14 +5,13 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(project_root))
 
-import geodesy_math as mat
 from closed_loop_eskf import inject_error_state
 
 
 def run_rts_smoother():
     """Pass Backward Rauch-Tung-Striebel (RTS) Smoother
     Uses nominal state x_nom, discrete dynamic system matrix and
-    posteriori/priori covariance matrices"""
+    posteriori/priori covariance matrices in a Closed-Loop architecture."""
 
     print("Initializing RTS Smoother (Closed-Loop Architecture)...")
 
@@ -30,7 +29,7 @@ def run_rts_smoother():
         P_minus = data["P_minus"]
         Phi = data["Phi"]
         z = data["z"]
-        Sk_diag = data["S_k_diag"]
+        Sk_diag = data["Sk_diag"]
 
     N = len(x_nom)
 
@@ -39,7 +38,7 @@ def run_rts_smoother():
     P_rts = np.zeros_like(P_plus)
     dx_rts = np.zeros((N, 15), dtype=np.float64)
 
-    # Boundary Conditionsat at final epoch when t = t_N
+    # Boundary Conditions at final epoch when t = t_N
     P_rts[-1] = P_plus[-1]
     dx_rts[-1] = np.zeros(15, dtype=np.float64)
 
@@ -47,7 +46,7 @@ def run_rts_smoother():
 
     # Backwards Pass Loop
     for k in range(N - 2, -1, -1):
-        # Matrix Inversion for strict numerical stablity
+        # Matrix Inversion for strict numerical stability
         try:
             # First Try: Cholesky (Requires Positive Definite Symmetric matrix)
             L = np.linalg.cholesky(P_minus[k + 1])
@@ -63,18 +62,21 @@ def run_rts_smoother():
             except np.linalg.LinAlgError:
                 P_pred_inv = np.linalg.pinv(P_minus[k + 1] + np.eye(15) * 1e-12)
 
+        # RTS Gain Matrix
         A_k = P_plus[k] @ Phi[k].T @ P_pred_inv
 
         # Closed Loop Error State Recursion
+        # In a Closed-Loop ESKF, dx is reset to 0 in the Forward Pass.
+        # Therefore: dx_{k|N} = 0 + A_k @ (dx_{k+1|N} - 0)
         dx_rts[k] = A_k @ dx_rts[k + 1]
 
         # Covariance Matrix Recursion
-        P_rts[k] = P_plus[k] + A_k(P_rts[k + 1] - P_minus[k + 1]) @ A_k.T
+        P_rts[k] = P_plus[k] + A_k @ (P_rts[k + 1] - P_minus[k + 1]) @ A_k.T
 
-        # Force Strict Symmetric Matrix
+        # Force Strict Symmetric Matrix to avoid floating point drift
         P_rts[k] = 0.5 * (P_rts[k] + P_rts[k].T)
 
-        # Delta_X State Re-injection
+        # Delta_X State Re-injection (Update nominal state with smoothed error)
         inject_error_state(x_rts[k], dx_rts[k])
 
     # Exporting BET (Best Estimated Trajectory) into a NPZ

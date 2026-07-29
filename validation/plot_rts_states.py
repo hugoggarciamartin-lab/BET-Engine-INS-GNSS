@@ -113,4 +113,5 @@ if __name__ == "__main__":
         plot_nominal_kinematics(npz_file)
         plot_trajectory_3d(npz_file)
         plt.show()
+    else:
         raise FileNotFoundError(f"Error: missing file at path {npz_file}")

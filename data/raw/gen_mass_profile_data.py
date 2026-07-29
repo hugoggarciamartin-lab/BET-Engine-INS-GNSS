@@ -1,15 +1,19 @@
+import sys
 import numpy as np
 import pandas as pd
 import gc
 from pathlib import Path
 
-raw_dir = Path(__file__).resolve().parent
+project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(project_root))
+from config.config_parser import ConfigParser
 
 
 def generate_mass_profile():
-    print("Generating vehicle mass profile telemetry...")
+    config_path = project_root / "config" / "config_baseline.yaml"
+    parser = ConfigParser(config_path)
+    cfg = parser.parse()
 
-    # TEMPORAL ALLOCATION
     duration = 120.0
     f_mass = 10.0
 
@@ -18,13 +22,11 @@ def generate_mass_profile():
     t_mass = np.arange(0.0, duration, 1.0 / f_mass, dtype=np.float64)
     m_curve = np.zeros(len(t_mass), dtype=np.float64)
 
-    # MASS KINEMATICS
-    m_0 = 250.0
-    m_f = 100.0
+    m_0 = cfg["m_0"]
+    m_f = cfg["m_f"]
     burn_start = 5.0
-    burn_end = 25.0
+    burn_end = cfg["time_eng_off"]
 
-    # Linear mass flow rate (kg/s) assuming constant thrust profile
     mdot = (m_0 - m_f) / (burn_end - burn_start)
 
     for i, t in enumerate(t_mass):
@@ -35,18 +37,17 @@ def generate_mass_profile():
         else:
             m_curve[i] = m_f
 
-    # NOISE INJECTION
-    # Simulating measurement uncertainty from a propellant level sensor
-    np.random.seed(303)  # Strict deterministic seed
+    np.random.seed(303)
     sensor_noise = np.random.normal(0, 0.5, len(t_mass))
     m_noisy = m_curve + sensor_noise
 
-    # EXPORT
     df = pd.DataFrame({"time": t_mass, "mass_kg": m_noisy})
+
+    raw_dir = project_root / "data" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
 
     output_filename = raw_dir / "flight_mass_prof_data.csv"
     df.to_csv(output_filename, index=False, float_format="%.4f")
-    print(f"Mass profile successfully written to {output_filename.name}")
 
     gc.enable()
 
