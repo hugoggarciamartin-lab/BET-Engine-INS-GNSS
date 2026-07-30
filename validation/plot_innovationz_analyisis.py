@@ -1,3 +1,6 @@
+"""Plots each innovation residual state from de EKSF z_k results, with its own theoric envelope,
+calculated from innnovation covariance matrix S_k (+/- 3 *sigma).
+
 import sys
 import numpy as np
 import matplotlib.pyplot as plt

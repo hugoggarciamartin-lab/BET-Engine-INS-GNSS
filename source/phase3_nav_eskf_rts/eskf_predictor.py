@@ -1,3 +1,7 @@
+"""ESKF forward prediction algorithms. Computes the continous-time
+system dynamics Jacobian F, the discrete state transition matrix PHI,
+and the process noise covariance matrix Q for a priori error propagation"""
+
 import numpy as np
 
 # Universal WGS84 Constant

@@ -1,3 +1,7 @@
+"""Strapdown Inertial Navigation System INS Mechanization.
+Implements continous-time coupled ODEs for position velocity
+and attitude propagated via explicit 4-th Order Runge-Kutta integration"""
+
 import numpy as np
 import geodesy_math as mat
 
@@ -38,11 +42,12 @@ def posit_lin2ang_matrix(
 
 
 def calc_isa_atmosphere(
-    alt_m: float, p0: float, t0: float, l_isa: float, g0: float
-) -> tuple[float, float]:
+    alt_m: np.ndarray | float, p0: float, t0: float, l_isa: float, g0: float
+) -> tuple[np.ndarray | float, np.ndarray | float]:
     """Calculates Local Temperature and Static Pressure using ISA atmosphere model.
-    Valid for Troposphere and Stratosphere"""
-    h = max(0.0, alt_m)
+    Fully vectorized to support both scalar and array inputs for Troposphere and Stratosphere."""
+    # Numpy array for vectorized operations
+    h = np.maximum(0.0, np.atleast_1d(alt_m))
     r_air = 287.0528
 
     # Tropopause Constants
@@ -50,25 +55,40 @@ def calc_isa_atmosphere(
     t_11 = t0 - l_isa * h_11
     p_11 = p0 * (t_11 / t0) ** (g0 / (l_isa * r_air))
 
-    if h <= h_11:
-        # Troposphere: Constant Temperature Gradient
-        t_local = t0 - l_isa * h
-        p_local = p0 * (t_local / t0) ** (g0 / (l_isa * r_air))
-    else:
-        # Stratosphere: Isothermal
-        t_local = t_11
-        p_local = p_11 * np.exp(-g0 * (h - h_11) / (r_air * t_11))
+    # Pre-allocate output arrays
+    t_local = np.zeros_like(h)
+    p_local = np.zeros_like(h)
 
-    return float(t_local), float(p_local)
+    # Boolean masks for atmospheric layers
+    tropo_lim = h <= h_11
+    strato_mask = ~tropo_lim
+
+    # Troposphere: Constant Temperature Gradient
+    if np.any(tropo_lim):
+        t_local[tropo_lim] = t0 - l_isa * h[tropo_lim]
+        p_local[tropo_lim] = p0 * (t_local[tropo_lim] / t0) ** (g0 / (l_isa * r_air))
+
+    # Stratosphere: Isothermal
+    if np.any(strato_mask):
+        t_local[strato_mask] = t_11
+        p_local[strato_mask] = p_11 * np.exp(
+            -g0 * (h[strato_mask] - h_11) / (r_air * t_11)
+        )
+
+    # Return scalar if input was scalar
+    if np.isscalar(alt_m):
+        return float(t_local[0]), float(p_local[0])
+    return t_local, p_local
 
 
 def calc_isa_altitude(
-    p_local: np.ndarray, p0_isa: float, t0_isa: float, l_isa: float, g0: float
-) -> np.ndarray:
+    p_local: np.ndarray | float, p0_isa: float, t0_isa: float, l_isa: float, g0: float
+) -> np.ndarray | float:
     """
     Calculates Barometric Altitude from Static Pressure using the inverse ISA atmosphere model.
     Vectorized evaluate both Troposphere (h <= 11000m) and Stratosphere.
     """
+    p_safe = np.maximum(np.atleast_1d(p_local), 1e-10)
     r_air = 287.0528
     h_11 = 11000.0
 
@@ -77,35 +97,44 @@ def calc_isa_altitude(
     p_11 = p0_isa * (t_11 / t0_isa) ** (g0 / (l_isa * r_air))
 
     # Troposphere: Adiabatic
-    h_tropo = (t0_isa / l_isa) * (1.0 - (p_local / p0_isa) ** ((l_isa * r_air) / g0))
+    h_tropo = (t0_isa / l_isa) * (1.0 - (p_safe / p0_isa) ** ((l_isa * r_air) / g0))
 
     # Stratosphere: Isothermal
-    p_safe = np.maximum(p_local, 1e-10)
     h_strato = h_11 - ((r_air * t_11) / g0) * np.log(p_safe / p_11)
 
-    # Select mathematical regime based on local pressure (higher pressure = troposphere)
-    return np.where(p_local > p_11, h_tropo, h_strato)
+    # Select mathematical regime based on local pressure
+    alt_out = np.where(p_safe > p_11, h_tropo, h_strato)
+
+    if np.isscalar(p_local):
+        return float(alt_out[0])
+    return alt_out
 
 
 def calc_mach_number(
     v_n_vec: np.ndarray,
-    alt_m: float,
+    alt_m: np.ndarray | float,
     p0_isa: float,
     t0_isa: float,
     l_isa: float,
     g0: float,
-) -> float:
+) -> np.ndarray | float:
     """
-    Calculates Local Mach Number by considering de Atmosphere Model ISA.
+    Calculates Local Mach Number by considering the Atmosphere Model ISA.
+    Vectorized to accept both Nx3 velocity arrays and 3x1 single vectors.
     """
-    # ENU frame Velocity True Airspeed (Vector Module) (m/s)
-    v_tas = np.linalg.norm(v_n_vec)
-    # Local tempertaure (K) at an altitude called h
-    t_local, _ = calc_isa_atmosphere(alt_m, p0_isa, t0_isa, l_isa, g0)
-    # Local Sound Velocity
-    a_local = np.sqrt(1.4 * 287.058 * t_local)
+    v_vec = np.atleast_2d(v_n_vec)
+    # Norm along the velocity axis (handles both single vectors and arrays of vectors)
+    v_tas = np.linalg.norm(v_vec, axis=1)
 
-    return float(v_tas / a_local)
+    t_local, _ = calc_isa_atmosphere(alt_m, p0_isa, t0_isa, l_isa, g0)
+
+    # Local Sound Velocity array
+    a_local = np.sqrt(1.4 * 287.058 * t_local)
+    mach = v_tas / a_local
+
+    if np.isscalar(alt_m) and v_vec.shape[0] == 1:
+        return float(mach[0])
+    return mach
 
 
 def evaluate_ins_derivatives(

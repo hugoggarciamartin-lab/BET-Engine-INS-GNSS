@@ -1,3 +1,7 @@
+"""From measurement CSV files (IMU, GNSS, Baro, Mag), aligns every channel temporal axis into
+a 400 Hz master time-line.
+Exports the new data in a CSV master flight data"""
+
 import sys
 import pandas as pd
 import numpy as np

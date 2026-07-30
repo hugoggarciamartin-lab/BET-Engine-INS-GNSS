@@ -1,3 +1,7 @@
+"""Synthetic flight profile telemetry generator. Simulates ideal suborbital kinematics
+and injects controled stochastics noise (IMU, GNSS, Baro, Mag) to establish
+the ground truth for dynamic filter validation"""
+
 import sys
 import numpy as np
 import pandas as pd

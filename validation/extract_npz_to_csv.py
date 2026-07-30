@@ -1,3 +1,5 @@
+"""Transforms the exported NPZ file form ESKF into 2 CSV files: x_nom, PHI_k, delta_x, z_k ; P_minus, P_plus"""
+
 import numpy as np
 import pandas as pd
 from pathlib import Path

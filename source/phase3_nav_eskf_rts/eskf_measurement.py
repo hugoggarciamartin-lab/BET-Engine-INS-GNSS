@@ -1,3 +1,7 @@
+"""ESKF measuremenent update algorithms. Constructs the observation Jacobian H
+and measuremennt noise matrix R. Applies innovation sigma-trapping
+and executes Kalman update via Joseph Formula"""
+
 import numpy as np
 import geodesy_math as mat
 import kinematics_ins as kin

@@ -1,3 +1,7 @@
+"""Main Closed-Loop Error-State Kalman Filter Architecture. Executes
+the forward pass, coupling RK4 strapdown integration with sparse multi-sensor
+updates (GNSS, Baro, Mag) and manages the error injection"""
+
 import sys
 import gc
 import numpy as np
@@ -443,7 +447,7 @@ def main_eskf():
             mem["x_nom"][k, 10:13] = bias_a
             mem["x_nom"][k, 13:16] = bias_g
             mem["dx"][k] = np.zeros(15, dtype=np.float64)
-        pass
+        pass  # type: ignore
     finally:
         gc.enable()
         gc.collect()
@@ -466,7 +470,7 @@ def main_eskf():
     # Total Computing Time
     t_elapsed = time.perf_counter() - t_start
 
-    # Cálculo de métricas de rendimiento operacional
+    # Operational Performance Metrics
     epochs_processed = k_last + 1
     freq_exec = epochs_processed / t_elapsed if t_elapsed > 0 else 0.0
 

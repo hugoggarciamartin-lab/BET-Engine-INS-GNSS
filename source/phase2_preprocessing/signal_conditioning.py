@@ -1,3 +1,6 @@
+"""Applies a low-pass Butterworth filter to raw data from high frequency IMU telemetry
+Exports this data into a csv"""
+
 import sys
 import pandas as pd  # type ignore
 from pathlib import Path
@@ -10,7 +13,7 @@ from config.config_parser import ConfigParser
 
 
 class signalConditioner:
-    """Aplies a low-pass Butterworth filter to high-frequency IMU telemetry"""
+    """Applies a low-pass Butterworth filter to high-frequency IMU telemetry"""
 
     def __init__(self, raw_root: Path, output_dir: Path, config_file: Path):
         self.raw_root = raw_root

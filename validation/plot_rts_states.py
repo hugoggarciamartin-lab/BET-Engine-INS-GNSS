@@ -1,3 +1,7 @@
+"""Plots each state from de EKSF + RTS smoother nominal states results, with its own tolerance bands,
+calculated from covariance matrix P (+/- 3 *sigma).
+This also plots a 3D cartesian trajectory figure evaluating in ENU frame coordinates"""
+
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,9 +11,9 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from source.phase3_nav_eskf_rts.geodesy_math import (
-    calc_radii_vec,
-    geodetic_to_enu_vec,
-    quat2eul_vec,
+    calc_radii,
+    geodetic_to_enu,
+    quat2eul,
 )
 
 
@@ -23,7 +27,7 @@ def plot_nominal_kinematics(npz_path: Path):
     lat, lon, alt = x_nom[:, 0], x_nom[:, 1], np.abs(x_nom[:, 2])
 
     # Position kinematics
-    rm, rn = calc_radii_vec(lat)
+    rm, rn = calc_radii(lat)
 
     # project metric covariance back to angular tolerance (eq 9.3 inverted)
     sig_lat_deg = np.rad2deg(np.sqrt(p[:, 0, 0]) / (rm + alt))
@@ -66,7 +70,7 @@ def plot_nominal_kinematics(npz_path: Path):
         fig.tight_layout()
 
     # Attitude kinematics (euler)
-    roll, pitch, yaw = quat2eul_vec(x_nom[:, 6:10])
+    roll, pitch, yaw = quat2eul(x_nom[:, 6:10]).T
     ang_vars = [np.rad2deg(roll), np.rad2deg(pitch), np.rad2deg(yaw)]
     ang_labels = ["roll (deg)", "pitch (deg)", "yaw (deg)"]
 
@@ -94,7 +98,7 @@ def plot_trajectory_3d(npz_path: Path):
         x_nom = data["x_nom"]
 
     lat, lon, alt = x_nom[:, 0], x_nom[:, 1], np.abs(x_nom[:, 2])
-    e, n, u = geodetic_to_enu_vec(lat, lon, alt)
+    e, n, u = geodetic_to_enu(lat, lon, alt)
 
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection="3d")

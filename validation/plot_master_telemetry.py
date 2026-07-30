@@ -1,3 +1,5 @@
+"""Plots raw IMU, GNSS position/velocity, Baro and Mag channels data already synchronized"""
+
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt

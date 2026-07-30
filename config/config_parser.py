@@ -1,3 +1,7 @@
+"""Parses de YAML baseline configuration.
+Acts at the single source of truth for universal physical constantes,
+sensor stocastic parameters, calibration adn algorythm constantes"""
+
 import yaml
 import numpy as np
 from pathlib import Path

@@ -1,3 +1,6 @@
+"""Pre-ingnition static launch pad and telemetry simulator.
+Generates asynchronous static multi-sensor data and biases"""
+
 import sys
 import numpy as np
 import pandas as pd

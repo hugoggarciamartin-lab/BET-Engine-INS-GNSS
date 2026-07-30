@@ -1,3 +1,6 @@
+"""Aeropropulsive validation script. Reconstructs dynamic engine thrust
+and audits empirical drag coefficient by extracting RTS smooth data"""
+
 import sys
 import numpy as np
 import pandas as pd

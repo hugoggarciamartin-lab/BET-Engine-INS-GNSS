@@ -1,3 +1,8 @@
+"""Acausal Rauch-Tung-Striebel (RTS) backward smoother.
+Processes the stored forward-pass nominal states, transition and covariance matrices
+to compute the Best Estimated Trajectory (BET) by propagation future observation
+and covariances envelop backward"""
+
 import sys
 import numpy as np
 from pathlib import Path

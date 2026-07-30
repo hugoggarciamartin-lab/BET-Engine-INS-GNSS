@@ -1,3 +1,6 @@
+"""Fourier Transform Analysis from raw IMU data before frequency filtering
+Gives a visual perspective of the cutoff frequency requiered"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

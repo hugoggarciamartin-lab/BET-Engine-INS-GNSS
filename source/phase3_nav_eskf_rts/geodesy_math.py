@@ -1,3 +1,6 @@
+"""WGS84 geodetic transformations and SO(3) attitude kinematics.
+Provides typed mathematical for radii curvatura, gravity corrections and quaternion operations"""
+
 import numpy as np
 
 A_WGS = 6378187.0
@@ -7,36 +10,38 @@ G_E = 9.7803253359
 K_GRAV = 0.001931852652
 
 
-def calc_radii(lat_rad: float) -> tuple[np.float64, np.float64]:
-    """Calculate the principal curvature radius R_M (meridian) and R_N (vertical)"""
-    sin2_lat = np.sin(lat_rad) ** 2
+def calc_radii(lat_rad: np.ndarray | float) -> tuple:
+    """Calculate the principal curvature radius R_M (meridian) and R_N (vertical).
+    Polymorphic: handles both scalar ESKF execution and vectorized batch analysis."""
+    lat = np.atleast_1d(lat_rad)
+    sin2_lat = np.sin(lat) ** 2
     den = 1.0 - E2_WGS * sin2_lat
 
-    r_m = (A_WGS * (1 - E2_WGS)) / (den**1.5)
+    r_m = (A_WGS * (1.0 - E2_WGS)) / (den**1.5)
     r_n = A_WGS / np.sqrt(den)
 
-    return np.float64(r_m), np.float64(r_n)
-
-
-def calc_radii_vec(lat_rad: np.ndarray) -> tuple:
-    """Calculate meridian and prime vertical radii for tolerance band conversion."""
-    sin2_lat = np.sin(lat_rad) ** 2
-    den = 1.0 - E2_WGS * sin2_lat
-    r_m = (A_WGS * (1 - E2_WGS)) / (den**1.5)
-    r_n = A_WGS / np.sqrt(den)
+    if np.isscalar(lat_rad):
+        return float(r_m[0]), float(r_n[0])
     return r_m, r_n
 
 
-def somig_gravity(lat_rad: float, alt_m: float) -> np.float64:
-    """Calculate escalar local gravity applying Somilglian equation and free air anomaly correction"""
-    sin2_lat = np.sin(lat_rad) ** 2
+def somig_gravity(
+    lat_rad: np.ndarray | float, alt_m: np.ndarray | float
+) -> np.ndarray | float:
+    """Calculate escalar local gravity applying Somigliana equation and free air anomaly correction."""
+    lat = np.atleast_1d(lat_rad)
+    alt = np.atleast_1d(alt_m)
+
+    sin2_lat = np.sin(lat) ** 2
     num = 1.0 + K_GRAV * sin2_lat
     den = np.sqrt(1.0 - E2_WGS * sin2_lat)
 
     g_0 = G_E * (num / den)
-    g_h = g_0 * (1.0 - (2.0 * alt_m) / A_WGS)
+    g_h = g_0 * (1.0 - (2.0 * alt) / A_WGS)
 
-    return np.float64(g_h)
+    if np.isscalar(lat_rad) and np.isscalar(alt_m):
+        return float(g_h[0])
+    return g_h
 
 
 def skew_sym(v: np.ndarray) -> np.ndarray:
@@ -116,37 +121,26 @@ def eul2quat(roll: float, pitch: float, yaw: float) -> np.ndarray:
 
 def quat2eul(q: np.ndarray) -> np.ndarray:
     """
-    Converts a quaternion [q0, q1, q2, q3] to Euler angles (Tait-Bryan ZYX). Returns the vector [roll, pitch, yaw] in radians
+    Converts a quaternion [q0, q1, q2, q3] to Euler angles (Tait-Bryan ZYX).
+    Returns [roll, pitch, yaw] in radians. Handles both shape (4,) and (N, 4).
     """
-    q0, q1, q2, q3 = q[0], q[1], q[2], q[3]
+    q_arr = np.atleast_2d(q)
+    q0, q1, q2, q3 = q_arr[:, 0], q_arr[:, 1], q_arr[:, 2], q_arr[:, 3]
 
     sinr_cosp = 2.0 * (q0 * q1 + q2 * q3)
     cosr_cosp = 1.0 - 2.0 * (q1**2 + q2**2)
     roll = np.arctan2(sinr_cosp, cosr_cosp)
 
-    sinp = 2.0 * (q0 * q2 - q3 * q1)
-    # Protects against precision errors (out of arcos function domain)
-    sinp = np.clip(sinp, -1.0, 1.0)
+    sinp = np.clip(2.0 * (q0 * q2 - q3 * q1), -1.0, 1.0)
     pitch = np.arcsin(sinp)
 
-    # Yaw (Guiñada) - Rotación sobre el eje Z
     siny_cosp = 2.0 * (q0 * q3 + q1 * q2)
     cosy_cosp = 1.0 - 2.0 * (q2**2 + q3**2)
     yaw = np.arctan2(siny_cosp, cosy_cosp)
 
-    return np.array([roll, pitch, yaw], dtype=np.float64)
-
-
-def quat2eul_vec(q: np.ndarray) -> tuple:
-    """Vectorized S^3 quaternion to Tait-Bryan Euler angles (Roll, Pitch, Yaw) in rad."""
-    q0, q1, q2, q3 = q[:, 0], q[:, 1], q[:, 2], q[:, 3]
-
-    roll = np.arctan2(2.0 * (q0 * q1 + q2 * q3), 1.0 - 2.0 * (q1**2 + q2**2))
-    sinp = np.clip(2.0 * (q0 * q2 - q3 * q1), -1.0, 1.0)
-    pitch = np.arcsin(sinp)
-    yaw = np.arctan2(2.0 * (q0 * q3 + q1 * q2), 1.0 - 2.0 * (q2**2 + q3**2))
-
-    return roll, pitch, yaw
+    if q.ndim == 1:
+        return np.array([roll[0], pitch[0], yaw[0]], dtype=np.float64)
+    return np.column_stack((roll, pitch, yaw))
 
 
 def norm_quat(q: np.ndarray) -> np.ndarray:
@@ -158,26 +152,33 @@ def norm_quat(q: np.ndarray) -> np.ndarray:
     return (q / norm).astype(np.float64)
 
 
-def geodetic_to_enu_vec(lat: np.ndarray, lon: np.ndarray, h: np.ndarray) -> tuple:
+def geodetic_to_enu(
+    lat: np.ndarray | float, lon: np.ndarray | float, h: np.ndarray | float
+) -> tuple:
     """Project geodetic coordinates to local Cartesian ENU frame.
-    Z axis is strictly positive upwards (relative altitude)."""
-    N = A_WGS / np.sqrt(1.0 - E2_WGS * np.sin(lat) ** 2)
-    X = (N + h) * np.cos(lat) * np.cos(lon)
-    Y = (N + h) * np.cos(lat) * np.sin(lon)
-    Z = (N * (1.0 - E2_WGS) + h) * np.sin(lat)
+    Anchors the ENU origin to the first element of the input arrays."""
+    lat_arr = np.atleast_1d(lat)
+    lon_arr = np.atleast_1d(lon)
+    h_arr = np.atleast_1d(h)
 
-    # Anchor to initial epoch (t=0)
+    N = A_WGS / np.sqrt(1.0 - E2_WGS * np.sin(lat_arr) ** 2)
+    X = (N + h_arr) * np.cos(lat_arr) * np.cos(lon_arr)
+    Y = (N + h_arr) * np.cos(lat_arr) * np.sin(lon_arr)
+    Z = (N * (1.0 - E2_WGS) + h_arr) * np.sin(lat_arr)
+
+    # ENU Frame Origin
     X0, Y0, Z0 = X[0], Y[0], Z[0]
-    lat0, lon0 = lat[0], lon[0]
+    lat0, lon0 = lat_arr[0], lon_arr[0]
 
     dx, dy, dz = X - X0, Y - Y0, Z - Z0
 
     slat, clat = np.sin(lat0), np.cos(lat0)
     slon, clon = np.sin(lon0), np.cos(lon0)
 
-    # ECEF to ENU Transformation Matrix
     E = -slon * dx + clon * dy
     N_enu = -slat * clon * dx - slat * slon * dy + clat * dz
     U = clat * clon * dx + clat * slon * dy + slat * dz
 
+    if np.isscalar(lat) and np.isscalar(lon):
+        return float(E[0]), float(N_enu[0]), float(U[0])
     return E, N_enu, U

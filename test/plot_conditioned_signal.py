@@ -1,3 +1,5 @@
+"""Plot IMU data series from all 6 channels before and after filtering"""
+
 import pandas as pd  # type: ignore
 import matplotlib.pyplot as plt
 from pathlib import Path

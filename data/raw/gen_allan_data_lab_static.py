@@ -1,3 +1,6 @@
+"""Extended static laboratory telemetry simulator (Allan Variance).
+Generates long-duration synthetic IMU data governed by white noise and Coupled  Gauss-Markov processes"""
+
 import sys
 import numpy as np
 import scipy.signal as signal

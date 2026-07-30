@@ -1,3 +1,5 @@
+"""Flight mass evolution profile generator in time domain"""
+
 import sys
 import numpy as np
 import pandas as pd

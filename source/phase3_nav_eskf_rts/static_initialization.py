@@ -1,3 +1,6 @@
+"""ESKF boundary condition intializer. Processes static pre-ignition
+telemetry to compute the initial 15x1 state vector and P_o covariance matrix"""
+
 import sys
 import numpy as np
 import pandas as pd

@@ -1,3 +1,6 @@
+"""Extracts Allan related parameters such as Random Walk white Noise,
+Bias Instability and Correlation time, from the 6 channels form IMU"""
+
 import numpy as np
 import pandas as pd
 from typing import Tuple, Dict
