@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-raw_dir = Path(__file__).resolve().parent
+project_root = Path(__file__).resolve().parent.parent.parent
 
 
 def generate_cfd_model():
@@ -22,14 +22,18 @@ def generate_cfd_model():
             # Peak drag transition
             cd_array[i] = 0.80 - 0.15 * ((M - 1.1) / 0.3)
         else:
-            # Supersonic decay
+            # Supersonic descend
             cd_array[i] = 0.65 - 0.10 * ((M - 1.4) / 1.6)
 
     df = pd.DataFrame({"Mach": mach_array, "C_D_CFD": cd_array})
 
-    output_filename = raw_dir / "cfd_drag_model.csv"
-    df.to_csv(output_filename, index=False, float_format="%.4f")
-    print(f"CFD table successfully written to {output_filename.name}")
+    raw_dir = project_root / "data" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    file_path = raw_dir / "cfd_drag_model.csv"
+
+    df.to_csv(file_path, index=False, float_format="%.4f")
+    print(f"CFD table successfully written to foler '{raw_dir.name}' ")
 
 
 if __name__ == "__main__":

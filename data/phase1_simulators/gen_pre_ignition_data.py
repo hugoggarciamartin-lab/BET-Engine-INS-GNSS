@@ -1,14 +1,12 @@
 """Pre-ingnition static launch pad and telemetry simulator.
 Generates asynchronous static multi-sensor data and biases"""
 
-import sys
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from config.config_parser import ConfigParser
 
 project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_root))
-from config.config_parser import ConfigParser
 
 
 def generate_pad_telemetry():

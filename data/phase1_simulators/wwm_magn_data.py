@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy.interpolate import NearestNDInterpolator
+from pathlib import Path
 
 
 def parse_wmm_to_enu_csv(input_path: str, output_path: str) -> None:
@@ -106,9 +107,7 @@ def parse_wmm_to_enu_csv(input_path: str, output_path: str) -> None:
 
 
 if __name__ == "__main__":
-    from pathlib import Path
-
-    # Absolute anchor to the project root
+    # Absolute project root
     project_root = Path(__file__).resolve().parent.parent.parent
     raw_dir = project_root / "data" / "raw"
 
