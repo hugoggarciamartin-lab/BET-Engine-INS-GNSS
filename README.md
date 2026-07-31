@@ -111,26 +111,27 @@ Unpack the `.npz` tensors to assert the bounds, visualize the 3D trajectory, and
 ---
 
 ## 5. Certification & Requirements-Based Testing
-To support tool qualification objectives, this software is continuously validated against edge cases (e.g., gimbal lock, polar singularities, atmospheric limits).
+To support tool qualification objectives, this software is continuously validated against edge cases (gimbal lock, polar singularities, atmospheric limit).
 
 ### Running the Test Suite
 The repository utilizes `pytest` to assert numerical stability and enforce interface contracts.
     # Execute all unit tests and generate a Statement Coverage report
-    pytest tests/ --cov=source --cov-report=term-missing
+    
+    pytest test/
 
 ---
 
 ## 6. Industrial Applications, Limitations & Future Work
 
 ### 6.1. Applications
-* **Post-Flight Aerospace Forensics:** Reconstructing flight paths and detecting sensor anomalies or attitude drift for experimental vehicles and suborbital test flights.
-* **Aerodynamic & Propulsive Audit:** Extracting empirical drag coefficients (C_D) and isolating engine thrust profiles from real-world telemetry combined with CFD baselines.
-* **Sensor Calibration & Bias Estimation:** Estimating deterministic turn-on biases and tracking stochastic noise parameters (ARW, VRW, and Flicker Noise via Allan Variance).
+* **Post-Flight Aerospace Analysis:** Reconstructing flight paths and detecting sensor anomalies or attitude drift for experimental vehicles and suborbital test flights.
+* **Aerodynamic & Propulsive Audit:** Extracting empirical drag coefficients (C_D) and engine thrust profiles from telemetry combined with CFD tabulated data.
+* **Sensor Calibration & Bias Estimation:** Estimating deterministic turn-on biases and tracking stochastic noise parameters (Random Walk (ARW, VRW) and Bias Instability(Flicker Noise) via Allan Variance).
 
 ### 6.2. Limitations
 * **Non-Real-Time Processing Constraint:** The inclusion of an acausal Rauch-Tung-Striebel (RTS) backward smoother requires complete flight datasets, rendering the pipeline unsuitable for real-time onboard flight control computers.
 * **Tropospheric Atmospheric Model Bounds:** The ISA atmospheric model implemented is constrained to tropospheric altitudes (h <= 11,000 meters), limiting high-altitude stratospheric trajectory accuracy unless extended.
-* **Dynamic Maneuvering Assumptions:** High-dynamic abrupt maneuvers beyond the modelled error-state boundaries or severe unmasked vibrations can cause temporary filter divergence if innovation sigma gates are exceeded.
+* **Dynamic Maneuvering Assumptions:** High-dynamic maneuvers beyond the modelled error-state boundaries or severe unconsidered vibrations may cause temporary filter divergence if innovation sigma limits are exceeded.
 
 ### 6.3. Future Roadmap / Missing Features
 * **Extended Kalman Filter (EKF) Real-Time Mode:** Implementation of a causal forward-only operational mode for hardware-in-the-loop (HIL) testing.
