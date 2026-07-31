@@ -41,73 +41,34 @@ def posit_lin2ang_matrix(
     )
 
 
-def calc_isa_atmosphere(
-    alt_m: np.ndarray | float, p0: float, t0: float, l_isa: float, g0: float
-) -> tuple[np.ndarray | float, np.ndarray | float]:
-    """Calculates Local Temperature and Static Pressure using ISA atmosphere model.
-    Fully vectorized to support both scalar and array inputs for Troposphere and Stratosphere."""
-    # Numpy array for vectorized operations
-    h = np.maximum(0.0, np.atleast_1d(alt_m))
-    r_air = 287.0528
-
-    # Tropopause Constants
-    h_11 = 11000.0
-    t_11 = t0 - l_isa * h_11
-    p_11 = p0 * (t_11 / t0) ** (g0 / (l_isa * r_air))
-
-    # Pre-allocate output arrays
-    t_local = np.zeros_like(h)
-    p_local = np.zeros_like(h)
-
-    # Boolean masks for atmospheric layers
-    tropo_lim = h <= h_11
-    strato_mask = ~tropo_lim
-
-    # Troposphere: Constant Temperature Gradient
-    if np.any(tropo_lim):
-        t_local[tropo_lim] = t0 - l_isa * h[tropo_lim]
-        p_local[tropo_lim] = p0 * (t_local[tropo_lim] / t0) ** (g0 / (l_isa * r_air))
-
-    # Stratosphere: Isothermal
-    if np.any(strato_mask):
-        t_local[strato_mask] = t_11
-        p_local[strato_mask] = p_11 * np.exp(
-            -g0 * (h[strato_mask] - h_11) / (r_air * t_11)
+def calc_isa_atmosphere(alt, p0=101325.0, t0=288.15, L=0.0065, g=9.80665, R=287.05287):
+    """
+    Computes standard atmospheric temperature and pressure at a given altitude.
+    """
+    if np.any(p0 <= 0):
+        raise ValueError(
+            "Critical Sensor Failure: Base pressure (p0) must be strictly positive."
         )
 
-    # Return scalar if input was scalar
-    if np.isscalar(alt_m):
-        return float(t_local[0]), float(p_local[0])
-    return t_local, p_local
+    # Tropospheric model (Valid up to 11,000 meters)
+    t_loc = t0 - L * alt
+    p_loc = p0 * (1.0 - (L * alt) / t0) ** ((g) / (L * R))
+
+    return t_loc, p_loc
 
 
-def calc_isa_altitude(
-    p_local: np.ndarray | float, p0_isa: float, t0_isa: float, l_isa: float, g0: float
-) -> np.ndarray | float:
+def calc_isa_altitude(p_loc, p0=101325.0, t0=288.15, L=0.0065, g=9.80665, R=287.05287):
     """
-    Calculates Barometric Altitude from Static Pressure using the inverse ISA atmosphere model.
-    Vectorized evaluate both Troposphere (h <= 11000m) and Stratosphere.
+    Computes barometric altitude based on local static pressure using ISA equations.
     """
-    p_safe = np.maximum(np.atleast_1d(p_local), 1e-10)
-    r_air = 287.0528
-    h_11 = 11000.0
+    if np.any(p0 <= 0) or np.any(p_loc <= 0):
+        raise ValueError(
+            "Critical Sensor Failure: Pressure readings must be strictly positive."
+        )
 
-    # Tropopause boundary constants
-    t_11 = t0_isa - l_isa * h_11
-    p_11 = p0_isa * (t_11 / t0_isa) ** (g0 / (l_isa * r_air))
-
-    # Troposphere: Adiabatic
-    h_tropo = (t0_isa / l_isa) * (1.0 - (p_safe / p0_isa) ** ((l_isa * r_air) / g0))
-
-    # Stratosphere: Isothermal
-    h_strato = h_11 - ((r_air * t_11) / g0) * np.log(p_safe / p_11)
-
-    # Select mathematical regime based on local pressure
-    alt_out = np.where(p_safe > p_11, h_tropo, h_strato)
-
-    if np.isscalar(p_local):
-        return float(alt_out[0])
-    return alt_out
+    # Inverse ISA tropospheric equation
+    alt = (t0 / L) * (1.0 - (p_loc / p0) ** ((L * R) / g))
+    return alt
 
 
 def calc_mach_number(
