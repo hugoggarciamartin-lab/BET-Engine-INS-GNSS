@@ -4,7 +4,6 @@ Generates asynchronous static multi-sensor data and biases"""
 import sys
 import numpy as np
 import pandas as pd
-import gc
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -19,8 +18,6 @@ def generate_pad_telemetry():
 
     duration = 60.0
     f_imu, f_gnss, f_baro, f_mag = 400.0, 10.0, 20.0, 20.0
-
-    gc.disable()
 
     t_imu = np.arange(0.0, duration, 1.0 / f_imu, dtype=np.float64)
     t_gnss = np.arange(0.1, duration, 1.0 / f_gnss, dtype=np.float64)
@@ -119,8 +116,6 @@ def generate_pad_telemetry():
             "m_Z": mag_raw[:, 2],
         }
     ).to_csv(raw_dir / "preign_data_mag.csv", index=False, float_format="%.8f")
-
-    gc.enable()
 
 
 if __name__ == "__main__":

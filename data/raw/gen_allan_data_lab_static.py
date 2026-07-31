@@ -5,7 +5,6 @@ import sys
 import numpy as np
 import scipy.signal as signal
 import pandas as pd
-import gc
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -22,8 +21,6 @@ def generate_allan_variance_data():
     dt = 1.0 / f_s
     duration_hours = 2.5
     N = int(duration_hours * 3600 * f_s)
-
-    gc.disable()
 
     t_master = np.arange(0, N, dtype=np.float64) * dt
     f_raw = np.zeros((N, 3), dtype=np.float64)
@@ -94,8 +91,6 @@ def generate_allan_variance_data():
 
     output_filename = raw_dir / "lab_allan_variance_data.csv"
     df.to_csv(output_filename, index=False, float_format="%.8f")
-
-    gc.enable()
 
 
 if __name__ == "__main__":

@@ -3,7 +3,6 @@
 import sys
 import numpy as np
 import pandas as pd
-import gc
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -18,8 +17,6 @@ def generate_mass_profile():
 
     duration = 120.0
     f_mass = 10.0
-
-    gc.disable()
 
     t_mass = np.arange(0.0, duration, 1.0 / f_mass, dtype=np.float64)
     m_curve = np.zeros(len(t_mass), dtype=np.float64)
@@ -50,8 +47,6 @@ def generate_mass_profile():
 
     output_filename = raw_dir / "flight_mass_prof_data.csv"
     df.to_csv(output_filename, index=False, float_format="%.4f")
-
-    gc.enable()
 
 
 if __name__ == "__main__":

@@ -21,8 +21,6 @@ def generate_flight_profile():
     duration = 120.0
     f_imu, f_gnss, f_baro, f_mag = 400.0, 10.0, 20.0, 20.0
 
-    gc.disable()
-
     t_imu = np.arange(0.0, duration, 1.0 / f_imu, dtype=np.float64)
     t_gnss = np.arange(0.1, duration, 1.0 / f_gnss, dtype=np.float64)
     t_baro = np.arange(0.05, duration, 1.0 / f_baro, dtype=np.float64)
@@ -200,8 +198,6 @@ def generate_flight_profile():
             "m_Z": mag_raw[:, 2],
         }
     ).to_csv(raw_dir / "flight_data_mag.csv", index=False, float_format="%.8f")
-
-    gc.enable()
 
 
 if __name__ == "__main__":
