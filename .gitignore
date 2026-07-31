@@ -9,13 +9,12 @@ __pycache__/
 *$py.class
 *.json
 
-].mypy_cache/
+.mypy_cache/
 
 # IDEs
 .vscode/
 
-# EXCLUSIÓN GLOBAL DE DATOS (Afecta a raw, aligned_data, results)
 *.csv
 *.dat
 *.log
-*.npz*.npz
+*.npz
