@@ -8,8 +8,6 @@ from pathlib import Path
 from typing import Dict
 
 project_root = Path(__file__).resolve().parent.parent.parent
-phase3_dir = project_root / "source" / "phase3_nav_eskf_rts"
-sys.path.append(str(phase3_dir))
 
 import geodesy_math as mat
 import kinematics_ins as kin

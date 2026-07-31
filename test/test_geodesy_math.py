@@ -6,8 +6,6 @@ and mathematical singularities handling (e.g., polar latitudes, gimbal lock).
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 import pytest
 import numpy as np
 from source.phase3_nav_eskf_rts.geodesy_math import calc_radii, quat2eul

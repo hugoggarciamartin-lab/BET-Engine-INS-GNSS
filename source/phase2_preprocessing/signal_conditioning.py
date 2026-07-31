@@ -5,10 +5,6 @@ import sys
 import pandas as pd  # type ignore
 from pathlib import Path
 from scipy.signal import butter, filtfilt
-
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_root))
-
 from config.config_parser import ConfigParser
 
 
@@ -76,6 +72,7 @@ class signalConditioner:
 
 
 if __name__ == "__main__":
+    project_root = Path(__file__).resolve().parent.parent.parent
     raw_path = project_root / "data" / "raw"
     aligned_path = project_root / "data" / "aligned_data"
     config_path = project_root / "config" / "config_baseline.yaml"

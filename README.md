@@ -58,6 +58,11 @@ Install the exact library versions required for tensor operations and forensic p
     # Install dependencies from the locked manifest
     pip install -r requirements.txt
 
+To eliminate dependency path hacks, install the core repository as an editable Python package. Run the following command from the repository root:
+
+```bash
+pip install -e .
+
 ### 3.4. Single Source of Truth (SSOT) Configuration
 The system parameters (IMU noise densities, initial coordinates, temporal boundaries) are strictly controlled by a single configuration file. 
 Before running the pipeline, verify the parameters in:

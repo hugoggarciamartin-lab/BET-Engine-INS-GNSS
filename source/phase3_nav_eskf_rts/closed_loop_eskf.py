@@ -10,13 +10,6 @@ import time
 from pathlib import Path
 from scipy.interpolate import RegularGridInterpolator
 
-project_root = Path(__file__).resolve().parent.parent.parent
-source_dir = project_root / "source"
-config_dir = project_root / "config"
-
-sys.path.append(str(project_root))
-sys.path.append(str(source_dir))
-sys.path.append(str(config_dir))
 
 # Imports Arquitecture
 from config.config_parser import ConfigParser

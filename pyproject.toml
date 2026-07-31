@@ -6,3 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "bet-engine"
 version = "1.0.0"
 description = "Best Estimated Trajectory Reconstruction Engine"
+
+[tool.setuptools.packages.find]
+include = ["source*", "config*"]
+exclude = ["data*", "tests*", "test*"]

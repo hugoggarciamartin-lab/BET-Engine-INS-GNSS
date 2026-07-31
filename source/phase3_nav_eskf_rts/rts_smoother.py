@@ -7,8 +7,6 @@ import sys
 import numpy as np
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_root))
 
 from closed_loop_eskf import inject_error_state
 
@@ -21,6 +19,7 @@ def run_rts_smoother():
     print("Initializing RTS Smoother (Closed-Loop Architecture)...")
 
     # Inputs and Outputs Path
+    project_root = Path(__file__).resolve().parent.parent.parent
     in_path = project_root / "data" / "results" / "eskf_output_state.npz"
     out_path = project_root / "data" / "results" / "rts_eskf_output_state.npz"
 

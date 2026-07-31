@@ -8,9 +8,6 @@ import numpy as np
 from pathlib import Path
 from scipy.interpolate import interp1d
 
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(project_root))
-
 
 class temporalAligner:
     """Synchronizes multi-rate telemetry onto a single high-freq master time scale
@@ -114,6 +111,7 @@ class temporalAligner:
 
 
 if __name__ == "__main__":
+    project_root = Path(__file__).resolve().parent.parent.parent
     aligned_path = project_root / "data" / "aligned_data"
     raw_path = project_root / "data" / "raw"
 
