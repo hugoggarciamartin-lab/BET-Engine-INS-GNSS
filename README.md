@@ -17,7 +17,7 @@ To maintain strict traceability and avoid corrupting flight tests with unvalidat
 
 > [!WARNING] 
 > **CRITICAL NOTICE REGARDING SYNTHETIC DATA GENERATORS:**
-> Scripts responsible for generating telemetry and boundary conditions (e.g., flight profiles, Allan variance laboratory data, mass depletion curves) **DO NOT** process real-world flight data. These are Environment Simulators designed to output **strictly synthetic telemetry**. 
+> Scripts responsible for generating telemetry and boundary conditions (flight profiles, Allan variance laboratory data, mass depletion curves) **DO NOT** process real-world flight data. These are Environment Simulators designed to output **strictly synthetic telemetry**. 
 > Their sole purpose is to provide mathematical boundary conditions and test vectors to validate the Kalman filter without relying on physical flight logs. They must never be executed in a production pipeline analyzing real flight data.
 
 ### Subsystem Manifest
@@ -132,15 +132,16 @@ The repository utilizes `pytest` to assert numerical stability and enforce inter
 ### 6.1. Applications
 * **Post-Flight Aerospace Analysis:** Reconstructing flight paths and detecting sensor anomalies or attitude drift for experimental vehicles and suborbital test flights.
 * **Aerodynamic & Propulsive Audit:** Extracting empirical drag coefficients (C_D) and engine thrust profiles from telemetry combined with CFD tabulated data.
-* **Sensor Calibration & Bias Estimation:** Estimating deterministic turn-on biases and tracking stochastic noise parameters (Random Walk (ARW, VRW) and Bias Instability(Flicker Noise) via Allan Variance).
+* **Sensor Calibration & Bias Estimation:** Estimating deterministic turn-on biases and tracking stochastic noise parameters: Random Walk (ARW, VRW) and Bias Instability(Flicker Noise) via Allan Variance.
 
 ### 6.2. Limitations
 * **Non-Real-Time Processing Constraint:** The inclusion of an acausal Rauch-Tung-Striebel (RTS) backward smoother requires complete flight datasets, rendering the pipeline unsuitable for real-time onboard flight control computers.
 * **Tropospheric Atmospheric Model Bounds:** The ISA atmospheric model implemented is constrained to tropospheric altitudes (h <= 11,000 meters), limiting high-altitude stratospheric trajectory accuracy unless extended.
 * **Dynamic Maneuvering Assumptions:** High-dynamic maneuvers beyond the modelled error-state boundaries or severe unconsidered vibrations may cause temporary filter divergence if innovation sigma limits are exceeded.
 
-### 6.3. Future Roadmap / Missing Features
+### 6.3. Future Updatings / Missing Features
 * **Extended Kalman Filter (EKF) Real-Time Mode:** Implementation of a causal forward-only operational mode for hardware-in-the-loop (HIL) testing.
-* **Automated CI/CD Pipeline:** Integration of GitHub Actions for automated cross-platform `pytest` execution and code coverage reporting on every commit.
+* **Automated Pipeline:** Integration of GitHub Actions for automated cross-platform `pytest` execution and code coverage reporting on every commit.
 * **Stratospheric & Extratropospheric Extension:** Expansion of standard atmosphere routines to cover stratosphere and mesosphere layers.
+* **Aerodynamic Barometric Pressure Correction**: Current altitude updates incorporate a real-time stochastic mitigation strategy, dynamically inflating barometer measurement noise covariance based on a Mach number threshold ($M > 0.3$). Future iterations will replace this heuristic inflation with deterministic aerodynamic Static Source Error Correction (SSEC) models.This will also integrate Mach-dependent aerodynamic correction models (such as Prandtl-Glauert or empirical static source error correction tables) to compensate for dynamic pressure contamination at high subsonic and supersonic speeds.
 
