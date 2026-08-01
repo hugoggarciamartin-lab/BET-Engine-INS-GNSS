@@ -34,6 +34,7 @@ This software requires an isolated environment. Global Python installations are 
 
 ### 3.1. Repository Cloning
 Clone the repository to your local machine or cloud compute instance:
+
     git clone https://github.com/hugoggarciamartin-lab/BET-Engine-INS-GNSS.git
     cd BET-Engine-INS-GNSS
 
@@ -120,8 +121,8 @@ To support tool qualification objectives, this software is continuously validate
 
 ### Running the Test Suite
 The repository utilizes `pytest` to assert numerical stability and enforce interface contracts.
+
     # Execute all unit tests and generate a Statement Coverage report
-    
     pytest test/
 
 ---
