@@ -2,7 +2,6 @@
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
-![Compliance](https://img.shields.io/badge/compliance-DO--330_Ready-orange)
 
 ## 1. Executive Summary
 This repository hosts a production-grade, 15-state Error-State Kalman Filter (ESKF) and Rauch-Tung-Striebel (RTS) smoothing engine explicitly designed to reconstruct the Best Estimated Trajectory (BET) of sounding rockets and uncrewed aerospace platforms. Developed under strict software engineering principles and architected to align with aviation tool qualification frameworks (such as DO-330), the system deterministically solves the non-linear kinematics of flight by fusing high-frequency inertial telemetry (IMU) with low-frequency external observations (GNSS, Barometry, Magnetometry).
