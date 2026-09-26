@@ -186,7 +186,7 @@ def rk4_integration_step(
     Performs standard Runge-Kutta 4th order (RK4) numerical integration.
     Instead of creating new variables or temporary lists at every step (which
     slows down the computer and creates memory waste), this function uses
-    pre-allocated memory arrays that were prepared beforehand.It directly
+    pre-allocated memory arrays that were prepared beforehand. It directly
     updates and modifies the original 'state' array in-place, making the
     calculation extremely fast
     """
