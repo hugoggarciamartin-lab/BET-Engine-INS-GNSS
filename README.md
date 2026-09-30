@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 
 ## 1. Executive Summary
-This repository hosts a production-grade, 15-state Error-State Kalman Filter (ESKF) and Rauch-Tung-Striebel (RTS) smoothing engine explicitly designed to reconstruct the Best Estimated Trajectory (BET) of sounding rockets and uncrewed aerospace platforms. Developed under strict software engineering principles and architected to align with aviation tool qualification frameworks (such as DO-330), the system deterministically solves the non-linear kinematics of flight by fusing high-frequency inertial telemetry (IMU) with low-frequency external observations (GNSS, Barometry, Magnetometry).
+This repository hosts a production-grade, 15-state Error-State Kalman Filter (ESKF) and Rauch-Tung-Striebel (RTS) smoothing engine explicitly designed to reconstruct the Best Estimated Trajectory (BET) of sounding rockets and uncrewed aerospace platforms. Developed under strict software engineering principles and architected to align with aviation tool qualification frameworks, the system deterministically solves the non-linear kinematics of flight by fusing high-frequency inertial telemetry (IMU) with low-frequency external observations (GNSS, Barometry, Magnetometry).
 
 Unlike standard real-time navigation filters, the BET Engine is optimized for post-flight analysis. It enforces an immutable architectural segregation between raw data ingestion, kinematic integration (via 4th-order Runge-Kutta), and stochastic estimation. By leveraging the entire recorded flight history, the acausal RTS backward pass smooths the causal state estimates, globally minimizing covariance bounds and converging hardware errors—such as accelerometer and gyroscope biases—to their true physical values.
 
@@ -29,7 +29,7 @@ The analytical core relies on an uncoupled error-state formulation, ensuring tha
 
 ---S
 
-## 3. System Architecture & Synthetic Data Generation (DO-330 Context)
+## 3. System Architecture & Synthetic Data Generation
 
 To maintain strict traceability and avoid corrupting flight tests with unvalidated data, this repository enforces a rigid separation between algorithmic processing and data generation.
 
